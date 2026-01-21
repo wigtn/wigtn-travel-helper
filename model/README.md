@@ -103,12 +103,12 @@ python scripts/finetune.py --config configs/finetune_config.yaml
 | `lora.lora_alpha` | 128 | LoRA alpha |
 | `training.num_epochs` | 3 | 학습 에포크 |
 | `training.learning_rate` | 2e-4 | 학습률 |
-| `hardware.use_4bit` | true | 4비트 양자화 |
+| `hardware.use_4bit` | false | 4비트 양자화 (VRAM 부족 시 true) |
 
 **GPU 메모리 요구사항:**
 
-- 4비트 양자화: ~12GB VRAM
-- BF16: ~24GB VRAM
+- BF16 (기본): ~12-16GB VRAM (RTX 3090 권장)
+- 4비트 양자화: ~8-10GB VRAM (VRAM 부족 시)
 
 ### 4. 모델 평가
 

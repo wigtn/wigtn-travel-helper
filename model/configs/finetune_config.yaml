@@ -76,10 +76,10 @@ prompt:
 
 # Hardware Configuration
 hardware:
-  use_4bit: true           # Enable 4-bit quantization for training
+  use_4bit: false          # 3090 24GB면 BF16 풀로 학습 가능
   bnb_4bit_compute_dtype: "bfloat16"
   bnb_4bit_quant_type: "nf4"
-  use_nested_quant: true   # Enable nested quantization
+  use_nested_quant: true
 
 # Wandb Configuration (optional)
 wandb:
