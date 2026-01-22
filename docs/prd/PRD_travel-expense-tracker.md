@@ -9,39 +9,43 @@
 ## 1. Overview
 
 ### 1.1 Problem Statement
+
 해외 여행 중 지출을 기록할 때:
+
 - 어느 나라에서 얼마를 썼는지 헷갈림
 - 현지 통화와 원화를 오가며 파악하기 어려움
 - 하루에 여러 나라를 방문하는 경우 (경유, 국경 이동) 지출 정리가 복잡함
 
 ### 1.2 Goals
+
 - **단순한 지출 기록**: 금액, 카테고리, 메모만 입력
 - **통화 토글**: 현지통화 ↔ 원화 한 번에 전환해서 보기
 - **다중 국가 지원**: 하루에 여러 국가 방문해도 깔끔하게 관리
 - **오프라인 사용**: 인터넷 없이도 기록 가능
 
 ### 1.3 Non-Goals (Out of Scope)
+
 - ❌ 지갑/환전 관리 (환전 금액 입력 X)
 - ❌ 카드사/은행 연동
-- ❌ AI/OCR 기능
 - ❌ 백엔드 서버/회원가입
 - ❌ 예산 관리 (복잡한 기능)
 - ❌ 다국어 지원 (한국어만)
 
 ### 1.4 Scope
 
-| 포함 | 제외 |
-|------|------|
-| 여행 일정 (기간, 방문 국가) | 지갑/환전 관리 |
-| 지출 기록 (금액, 카테고리, 메모) | 예산 계획 |
-| 원화/현지통화 토글 보기 | 카드 연동 |
-| 다중 국가 레이어 UI | AI 영수증 OCR |
-| 오프라인 저장 | 백엔드/동기화 |
-| 캘린더 뷰 | 소셜 기능 |
+| 포함                             | 제외           |
+| -------------------------------- | -------------- |
+| 여행 일정 (기간, 방문 국가)      | 지갑/환전 관리 |
+| 지출 기록 (금액, 카테고리, 메모) | 예산 계획      |
+| 원화/현지통화 토글 보기          | 카드 연동      |
+| 다중 국가 레이어 UI              | AI 영수증 OCR  |
+| 오프라인 저장                    | 백엔드/동기화  |
+| 캘린더 뷰                        | 소셜 기능      |
 
 ## 2. User Stories
 
 ### 2.1 Primary User
+
 해외 여행을 자주 가는 20-40대 한국인 여행자
 
 ### 2.2 User Stories
@@ -86,39 +90,43 @@ Scenario: 하루 다중 국가
 
 ## 3. Functional Requirements
 
-| ID | Requirement | Priority | Dependencies |
-|----|------------|----------|--------------|
-| FR-001 | 여행 생성 (이름, 기간, 방문 국가 목록) | P0 (Must) | - |
-| FR-002 | 방문지 추가/수정/삭제 (국가, 통화, 기간) | P0 (Must) | FR-001 |
-| FR-003 | 지출 입력 (금액, 통화, 카테고리, 메모, 날짜) | P0 (Must) | FR-001 |
-| FR-004 | 지출 목록/수정/삭제 | P0 (Must) | FR-003 |
-| FR-005 | 실시간 환율 API 연동 (일별 캐싱) | P0 (Must) | - |
-| FR-006 | 원화 환산 및 저장 | P0 (Must) | FR-003, FR-005 |
-| FR-007 | **통화 토글 (원화 ↔ 현지통화)** | P0 (Must) | FR-003 |
-| FR-008 | **다중 국가 레이어 UI** | P0 (Must) | FR-002, FR-003 |
-| FR-009 | 캘린더 뷰 (날짜별 지출 표시) | P0 (Must) | FR-003 |
-| FR-010 | 오프라인 모드 (캐시된 환율 사용) | P1 (Should) | FR-005 |
-| FR-011 | 카테고리별 통계 | P1 (Should) | FR-003 |
-| FR-012 | 국가별 지출 통계 | P1 (Should) | FR-002, FR-003 |
-| FR-013 | 다크모드 | P2 (Could) | - |
+| ID     | Requirement                                  | Priority    | Dependencies   |
+| ------ | -------------------------------------------- | ----------- | -------------- |
+| FR-001 | 여행 생성 (이름, 기간, 방문 국가 목록)       | P0 (Must)   | -              |
+| FR-002 | 방문지 추가/수정/삭제 (국가, 통화, 기간)     | P0 (Must)   | FR-001         |
+| FR-003 | 지출 입력 (금액, 통화, 카테고리, 메모, 날짜) | P0 (Must)   | FR-001         |
+| FR-004 | 지출 목록/수정/삭제                          | P0 (Must)   | FR-003         |
+| FR-005 | 실시간 환율 API 연동 (일별 캐싱)             | P0 (Must)   | -              |
+| FR-006 | 원화 환산 및 저장                            | P0 (Must)   | FR-003, FR-005 |
+| FR-007 | **통화 토글 (원화 ↔ 현지통화)**              | P0 (Must)   | FR-003         |
+| FR-008 | **다중 국가 레이어 UI**                      | P0 (Must)   | FR-002, FR-003 |
+| FR-009 | 캘린더 뷰 (날짜별 지출 표시)                 | P0 (Must)   | FR-003         |
+| FR-010 | 오프라인 모드 (캐시된 환율 사용)             | P1 (Should) | FR-005         |
+| FR-011 | 카테고리별 통계                              | P1 (Should) | FR-003         |
+| FR-012 | 국가별 지출 통계                             | P1 (Should) | FR-002, FR-003 |
+| FR-013 | 다크모드                                     | P2 (Could)  | -              |
 
 ## 4. Non-Functional Requirements
 
 ### 4.1 Performance
+
 - 앱 시작 시간: < 2초
 - 지출 입력 → 저장: < 500ms
 - 환율 API 호출: 일 1회 (앱 시작 시 캐시 만료 확인)
 
 ### 4.2 Offline Support
+
 - SQLite로 로컬 데이터 저장
 - 환율은 마지막 캐시된 값 사용
 - 인터넷 없이도 모든 기능 사용 가능
 
 ### 4.3 Security
+
 - 로컬 데이터만 저장 (서버 없음)
 - 민감 정보 없음
 
 ### 4.4 Usability
+
 - 지출 입력: 3탭 이내 완료
 - 큰 터치 타겟 (최소 48x48dp)
 - 명확한 피드백: 저장 시 햅틱 + 토스트
@@ -127,15 +135,15 @@ Scenario: 하루 다중 국가
 
 ### 5.1 Tech Stack
 
-| Layer | Technology |
-|-------|------------|
-| Framework | Expo SDK 52+ |
-| Language | TypeScript |
-| State | Zustand |
-| Storage | expo-sqlite |
-| UI | React Native + NativeWind (Tailwind) |
-| Navigation | Expo Router |
-| Exchange Rate API | ExchangeRate-API (무료) |
+| Layer             | Technology                           |
+| ----------------- | ------------------------------------ |
+| Framework         | Expo SDK 52+                         |
+| Language          | TypeScript                           |
+| State             | Zustand                              |
+| Storage           | expo-sqlite                          |
+| UI                | React Native + NativeWind (Tailwind) |
+| Navigation        | Expo Router                          |
+| Exchange Rate API | ExchangeRate-API (무료)              |
 
 ### 5.2 Data Schema
 
@@ -143,8 +151,8 @@ Scenario: 하루 다중 국가
 // 여행
 interface Trip {
   id: string;
-  name: string;           // "일본-태국 여행"
-  startDate: string;      // ISO date
+  name: string; // "일본-태국 여행"
+  startDate: string; // ISO date
   endDate: string;
   createdAt: string;
   updatedAt: string;
@@ -154,44 +162,44 @@ interface Trip {
 interface Destination {
   id: string;
   tripId: string;
-  country: string;        // "JP"
-  countryName: string;    // "일본"
-  currency: string;       // "JPY"
-  startDate: string;      // 해당 국가 방문 시작
-  endDate: string;        // 해당 국가 방문 종료
-  order: number;          // 방문 순서
+  country: string; // "JP"
+  countryName: string; // "일본"
+  currency: string; // "JPY"
+  startDate: string; // 해당 국가 방문 시작
+  endDate: string; // 해당 국가 방문 종료
+  order: number; // 방문 순서
 }
 
 // 지출
 interface Expense {
   id: string;
   tripId: string;
-  destinationId: string;  // 어느 방문지(국가)에서 썼는지
-  amount: number;         // 현지 통화 금액
-  currency: string;       // "JPY"
-  amountKRW: number;      // 원화 환산 (저장 시점 환율)
-  exchangeRate: number;   // 적용된 환율
+  destinationId: string; // 어느 방문지(국가)에서 썼는지
+  amount: number; // 현지 통화 금액
+  currency: string; // "JPY"
+  amountKRW: number; // 원화 환산 (저장 시점 환율)
+  exchangeRate: number; // 적용된 환율
   category: Category;
   memo?: string;
-  date: string;           // ISO date
+  date: string; // ISO date
   createdAt: string;
   updatedAt: string;
 }
 
 // 카테고리
 type Category =
-  | 'food'        // 식비
-  | 'transport'   // 교통
-  | 'shopping'    // 쇼핑
-  | 'lodging'     // 숙박
-  | 'activity'    // 관광/액티비티
-  | 'etc';        // 기타
+  | "food" // 식비
+  | "transport" // 교통
+  | "shopping" // 쇼핑
+  | "lodging" // 숙박
+  | "activity" // 관광/액티비티
+  | "etc"; // 기타
 
 // 환율 캐시
 interface ExchangeRateCache {
-  base: 'KRW';
-  rates: Record<string, number>;  // { "JPY": 0.0925, "USD": 0.00071 }
-  lastUpdated: string;            // ISO datetime
+  base: "KRW";
+  rates: Record<string, number>; // { "JPY": 0.0925, "USD": 0.00071 }
+  lastUpdated: string; // ISO datetime
 }
 ```
 
@@ -199,7 +207,7 @@ interface ExchangeRateCache {
 
 ```typescript
 // 통화 표시 모드
-type CurrencyDisplayMode = 'local' | 'krw';
+type CurrencyDisplayMode = "local" | "krw";
 
 // Zustand store
 interface ExpenseStore {
@@ -248,18 +256,19 @@ interface ExpenseStore {
 ```
 
 **레이어 프레임 로직:**
+
 ```typescript
 // 특정 날짜의 지출을 국가별로 그룹화
 function groupExpensesByCountry(
   expenses: Expense[],
   destinations: Destination[],
-  date: string
+  date: string,
 ): Map<Destination, Expense[]> {
-  const dayExpenses = expenses.filter(e => e.date === date);
+  const dayExpenses = expenses.filter((e) => e.date === date);
   const grouped = new Map<Destination, Expense[]>();
 
   for (const expense of dayExpenses) {
-    const dest = destinations.find(d => d.id === expense.destinationId);
+    const dest = destinations.find((d) => d.id === expense.destinationId);
     if (dest) {
       const list = grouped.get(dest) || [];
       list.push(expense);
@@ -330,6 +339,7 @@ lib/
 ### 6.1 핵심 화면
 
 **1. 홈 화면**
+
 ```
 ┌─────────────────────────────────────┐
 │  Travel Helper                 [⚙️] │
@@ -361,6 +371,7 @@ lib/
 ```
 
 **2. 지출 입력 모달**
+
 ```
 ┌─────────────────────────────────────┐
 │  [X]        지출 입력               │
@@ -405,6 +416,7 @@ lib/
 ```
 
 **3. 일별 상세 (레이어 뷰)**
+
 ```
 ┌─────────────────────────────────────┐
 │  [<]     1월 20일 (토)        [편집] │
@@ -443,6 +455,7 @@ lib/
 ```
 
 **4. 캘린더 뷰**
+
 ```
 ┌─────────────────────────────────────┐
 │  [<]      2026년 1월          [>]   │
@@ -479,6 +492,7 @@ lib/
 ## 7. Implementation Phases
 
 ### Phase 1: Core MVP
+
 - [ ] Expo 프로젝트 셋업 + NativeWind
 - [ ] SQLite 스키마 및 기본 쿼리
 - [ ] 여행 CRUD
@@ -489,6 +503,7 @@ lib/
 **Deliverable**: 기본 지출 입력 + 원화 환산 동작
 
 ### Phase 2: 핵심 UI
+
 - [ ] 통화 토글 기능
 - [ ] 다중 국가 레이어 뷰
 - [ ] 캘린더 뷰 구현
@@ -497,6 +512,7 @@ lib/
 **Deliverable**: 핵심 기능 완성
 
 ### Phase 3: Polish
+
 - [ ] 카테고리별 통계
 - [ ] 국가별 지출 통계
 - [ ] 오프라인 완전 지원
@@ -507,12 +523,12 @@ lib/
 
 ## 8. Success Metrics
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
+| Metric         | Target | Measurement   |
+| -------------- | ------ | ------------- |
 | 지출 입력 시간 | < 10초 | 사용자 테스트 |
-| 앱 시작 시간 | < 2초 | 성능 측정 |
-| 오프라인 동작 | 100% | 테스트 |
-| 통화 토글 반응 | 즉시 | UI 테스트 |
+| 앱 시작 시간   | < 2초  | 성능 측정     |
+| 오프라인 동작  | 100%   | 테스트        |
+| 통화 토글 반응 | 즉시   | UI 테스트     |
 
 ## 9. Open Questions
 
@@ -525,43 +541,44 @@ lib/
 
 ### A. 지원 통화 (MVP)
 
-| 국가 | 코드 | 기호 |
-|------|------|------|
-| 일본 | JPY | ¥ |
-| 미국 | USD | $ |
-| 유럽 | EUR | € |
-| 태국 | THB | ฿ |
-| 베트남 | VND | ₫ |
-| 대만 | TWD | NT$ |
-| 중국 | CNY | ¥ |
-| 영국 | GBP | £ |
-| 호주 | AUD | A$ |
-| 싱가포르 | SGD | S$ |
-| 홍콩 | HKD | HK$ |
-| 말레이시아 | MYR | RM |
-| 필리핀 | PHP | ₱ |
-| 인도네시아 | IDR | Rp |
+| 국가       | 코드 | 기호 |
+| ---------- | ---- | ---- |
+| 일본       | JPY  | ¥    |
+| 미국       | USD  | $    |
+| 유럽       | EUR  | €    |
+| 태국       | THB  | ฿    |
+| 베트남     | VND  | ₫    |
+| 대만       | TWD  | NT$  |
+| 중국       | CNY  | ¥    |
+| 영국       | GBP  | £    |
+| 호주       | AUD  | A$   |
+| 싱가포르   | SGD  | S$   |
+| 홍콩       | HKD  | HK$  |
+| 말레이시아 | MYR  | RM   |
+| 필리핀     | PHP  | ₱    |
+| 인도네시아 | IDR  | Rp   |
 
 ### B. 카테고리 아이콘
 
-| Category | Icon | Label |
-|----------|------|-------|
-| food | 🍽️ | 식비 |
-| transport | 🚃 | 교통 |
-| shopping | 🛍️ | 쇼핑 |
-| lodging | 🏨 | 숙박 |
-| activity | 🎡 | 관광 |
-| etc | 📦 | 기타 |
+| Category  | Icon | Label |
+| --------- | ---- | ----- |
+| food      | 🍽️   | 식비  |
+| transport | 🚃   | 교통  |
+| shopping  | 🛍️   | 쇼핑  |
+| lodging   | 🏨   | 숙박  |
+| activity  | 🎡   | 관광  |
+| etc       | 📦   | 기타  |
 
 ### C. 경쟁앱 대비 차별점
 
-| 기능 | 우리 앱 | 타앱 |
-|------|---------|------|
-| 다중 국가 레이어 | ✅ | ❌ (대부분 단일 국가) |
-| 통화 토글 | ✅ 원터치 | ❌ 또는 복잡 |
-| 지갑/환전 관리 | ❌ (단순화) | ✅ (복잡) |
-| 오프라인 | ✅ 100% | 일부만 |
+| 기능             | 우리 앱     | 타앱                  |
+| ---------------- | ----------- | --------------------- |
+| 다중 국가 레이어 | ✅          | ❌ (대부분 단일 국가) |
+| 통화 토글        | ✅ 원터치   | ❌ 또는 복잡          |
+| 지갑/환전 관리   | ❌ (단순화) | ✅ (복잡)             |
+| 오프라인         | ✅ 100%     | 일부만                |
 
 **핵심 차별점**:
+
 - 하루에 여러 국가 방문해도 깔끔하게 관리
 - 복잡한 지갑/환전 기능 없이 **단순 지출 기록**에 집중
