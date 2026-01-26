@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsArray, ValidateNested, ArrayMaxSize } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class AnalyzeReceiptDto {
   @ApiProperty({ description: 'Base64 encoded image' })
@@ -19,4 +20,13 @@ export class AnalyzeReceiptDto {
   @IsOptional()
   @IsString()
   destinationId?: string;
+}
+
+export class BatchAnalyzeReceiptDto {
+  @ApiProperty({ type: [AnalyzeReceiptDto], description: 'Array of receipts to analyze (max 10)' })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @ArrayMaxSize(10)
+  @Type(() => AnalyzeReceiptDto)
+  receipts: AnalyzeReceiptDto[];
 }

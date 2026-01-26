@@ -22,6 +22,7 @@ model User {
   providerId   String?   @map("provider_id")
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at") // Soft delete (90일 후 Hard Delete)
 
   // Relations
   trips         Trip[]
@@ -61,6 +62,7 @@ model Trip {
   coverImage     String?   @map("cover_image")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at") // Soft delete (30일 후 Hard Delete)
 
   // Relations
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -75,15 +77,17 @@ model Trip {
 }
 
 model Destination {
-  id         String    @id @default(uuid())
-  tripId     String    @map("trip_id")
-  country    String
-  city       String?
-  currency   String    @db.VarChar(3)
-  startDate  DateTime? @map("start_date") @db.Date
-  endDate    DateTime? @map("end_date") @db.Date
-  orderIndex Int       @default(0) @map("order_index")
-  createdAt  DateTime  @default(now()) @map("created_at")
+  id          String    @id @default(uuid())
+  tripId      String    @map("trip_id")
+  countryCode String    @map("country_code") @db.VarChar(2) // ISO 3166-1 alpha-2
+  country     String // 표시명 (e.g., "일본", "프랑스")
+  city        String?
+  currency    String    @db.VarChar(3)
+  startDate   DateTime? @map("start_date") @db.Date
+  endDate     DateTime? @map("end_date") @db.Date
+  orderIndex  Int       @default(0) @map("order_index")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   // Relations
   trip     Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
@@ -98,11 +102,11 @@ model Destination {
 // ============================================
 
 model Expense {
-  id            String    @id @default(uuid())
-  tripId        String    @map("trip_id")
-  userId        String    @map("user_id")
-  destinationId String?   @map("destination_id")
-  walletId      String?   @map("wallet_id")
+  id            String  @id @default(uuid())
+  tripId        String  @map("trip_id")
+  userId        String  @map("user_id")
+  destinationId String? @map("destination_id")
+  walletId      String? @map("wallet_id")
 
   // Amount
   amount       Decimal @db.Decimal(15, 2)
@@ -112,7 +116,7 @@ model Expense {
 
   // Classification
   category      String // food, transport, shopping, lodging, activity, etc
-  paymentMethod String @default("card") @map("payment_method") // card, cash, wallet
+  paymentMethod String @default("card") @map("payment_method") // card, cash (wallet 제외 - MVP)
 
   // Details
   description String?

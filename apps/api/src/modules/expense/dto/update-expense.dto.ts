@@ -7,33 +7,57 @@ import {
   IsIn,
   MaxLength,
 } from 'class-validator';
+import {
+  UpdateExpenseDto as IUpdateExpenseDto,
+  Category,
+  PaymentMethod,
+  CATEGORIES,
+  PAYMENT_METHODS,
+  VALIDATION,
+} from '@wigtn/shared';
 
-export class UpdateExpenseDto {
+export class UpdateExpenseDto implements IUpdateExpenseDto {
   @ApiPropertyOptional({ example: 25.5 })
   @IsOptional()
   @IsNumber()
   amount?: number;
 
-  @ApiPropertyOptional({ enum: ['food', 'transport', 'shopping', 'lodging', 'activity', 'etc'] })
+  @ApiPropertyOptional({ example: 'EUR' })
   @IsOptional()
-  @IsIn(['food', 'transport', 'shopping', 'lodging', 'activity', 'etc'])
-  category?: string;
+  @IsString()
+  @MaxLength(VALIDATION.CURRENCY_LENGTH)
+  currency?: string;
 
-  @ApiPropertyOptional({ enum: ['card', 'cash', 'wallet'] })
+  @ApiPropertyOptional()
   @IsOptional()
-  @IsIn(['card', 'cash', 'wallet'])
-  paymentMethod?: string;
+  @IsNumber()
+  exchangeRate?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsNumber()
+  amountKRW?: number;
+
+  @ApiPropertyOptional({ enum: CATEGORIES })
+  @IsOptional()
+  @IsIn(CATEGORIES)
+  category?: Category;
+
+  @ApiPropertyOptional({ enum: PAYMENT_METHODS })
+  @IsOptional()
+  @IsIn(PAYMENT_METHODS)
+  paymentMethod?: PaymentMethod;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  @MaxLength(500)
+  @MaxLength(VALIDATION.DESCRIPTION_MAX)
   description?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  @MaxLength(1000)
+  @MaxLength(VALIDATION.MEMO_MAX)
   memo?: string;
 
   @ApiPropertyOptional({ example: '2025-01-20' })
@@ -45,4 +69,9 @@ export class UpdateExpenseDto {
   @IsOptional()
   @IsString()
   expenseTime?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  destinationId?: string;
 }

@@ -7,15 +7,32 @@ import {
   IsIn,
   MaxLength,
 } from 'class-validator';
+import {
+  CreateExpenseDto as ICreateExpenseDto,
+  Category,
+  PaymentMethod,
+  CATEGORIES,
+  PAYMENT_METHODS,
+  VALIDATION,
+} from '@wigtn/shared';
 
-export class CreateExpenseDto {
+export class CreateExpenseDto implements ICreateExpenseDto {
+  @ApiProperty({ description: 'Trip ID' })
+  @IsString()
+  tripId: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  destinationId?: string;
+
   @ApiProperty({ example: 25.5 })
   @IsNumber()
   amount: number;
 
   @ApiProperty({ example: 'EUR' })
   @IsString()
-  @MaxLength(3)
+  @MaxLength(VALIDATION.CURRENCY_LENGTH)
   currency: string;
 
   @ApiProperty({ example: 1450.5 })
@@ -26,34 +43,24 @@ export class CreateExpenseDto {
   @IsNumber()
   amountKRW: number;
 
-  @ApiProperty({ enum: ['food', 'transport', 'shopping', 'lodging', 'activity', 'etc'] })
-  @IsIn(['food', 'transport', 'shopping', 'lodging', 'activity', 'etc'])
-  category: string;
+  @ApiProperty({ enum: CATEGORIES })
+  @IsIn(CATEGORIES)
+  category: Category;
 
-  @ApiProperty({ enum: ['card', 'cash', 'wallet'] })
-  @IsIn(['card', 'cash', 'wallet'])
-  paymentMethod: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  destinationId?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  walletId?: string;
+  @ApiProperty({ enum: PAYMENT_METHODS })
+  @IsIn(PAYMENT_METHODS)
+  paymentMethod: PaymentMethod;
 
   @ApiPropertyOptional({ example: '에펠탑 근처 카페' })
   @IsOptional()
   @IsString()
-  @MaxLength(500)
+  @MaxLength(VALIDATION.DESCRIPTION_MAX)
   description?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  @MaxLength(1000)
+  @MaxLength(VALIDATION.MEMO_MAX)
   memo?: string;
 
   @ApiProperty({ example: '2025-01-20' })

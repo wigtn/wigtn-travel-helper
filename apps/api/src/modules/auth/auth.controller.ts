@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   UseGuards,
   Req,
@@ -16,7 +17,9 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SocialLoginDto } from './dto/social-login.dto';
-import { AuthenticatedRequest } from '../../common/interfaces/request.interface';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { AuthenticatedRequest, LocalAuthenticatedRequest } from '../../common/interfaces/request.interface';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -37,7 +40,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  async login(@Req() req: AuthenticatedRequest, @Body() _loginDto: LoginDto) {
+  async login(@Req() req: LocalAuthenticatedRequest, @Body() _loginDto: LoginDto) {
     return this.authService.login(req.user);
   }
 
@@ -55,21 +58,41 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout and invalidate refresh token' })
-  async logout(@Req() req: AuthenticatedRequest, @Body() body: { refreshToken: string }) {
+  async logout(@Req() req: AuthenticatedRequest, @Body() body: RefreshTokenDto) {
     return this.authService.logout(req.user.id, body.refreshToken);
   }
 
-  @Post('social/apple')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Login with Apple' })
-  async appleLogin(@Body() socialLoginDto: SocialLoginDto) {
-    return this.authService.socialLogin('apple', socialLoginDto.idToken);
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user info' })
+  @ApiResponse({ status: 200, description: 'User info retrieved' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async me(@Req() req: AuthenticatedRequest) {
+    return this.authService.getCurrentUser(req.user.id);
   }
 
-  @Post('social/google')
+  @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Login with Google' })
-  async googleLogin(@Body() socialLoginDto: SocialLoginDto) {
-    return this.authService.socialLogin('google', socialLoginDto.idToken);
+  @ApiOperation({ summary: 'Request password reset code' })
+  @ApiResponse({ status: 200, description: 'Reset code sent to email' })
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(forgotPasswordDto.email);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password with code' })
+  @ApiResponse({ status: 200, description: 'Password reset successful' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired code' })
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(resetPasswordDto);
+  }
+
+  @Post('social')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Login with social provider' })
+  async socialLogin(@Body() socialLoginDto: SocialLoginDto) {
+    return this.authService.socialLogin(socialLoginDto.provider, socialLoginDto.idToken);
   }
 }

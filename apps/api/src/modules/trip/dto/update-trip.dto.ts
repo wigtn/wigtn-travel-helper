@@ -1,11 +1,12 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsString, IsOptional, IsDateString, IsNumber, IsIn, MaxLength } from 'class-validator';
+import { UpdateTripDto as IUpdateTripDto, VALIDATION, TripStatus, TRIP_STATUSES } from '@wigtn/shared';
 
-export class UpdateTripDto {
+export class UpdateTripDto implements IUpdateTripDto {
   @ApiPropertyOptional({ example: '유럽 배낭여행' })
   @IsOptional()
   @IsString()
-  @MaxLength(200)
+  @MaxLength(VALIDATION.TRIP_NAME_MAX)
   name?: string;
 
   @ApiPropertyOptional({ example: '2025-01-15' })
@@ -23,8 +24,18 @@ export class UpdateTripDto {
   @IsNumber()
   budget?: number;
 
-  @ApiPropertyOptional({ enum: ['active', 'completed', 'cancelled'] })
+  @ApiPropertyOptional({ example: 'KRW' })
   @IsOptional()
-  @IsIn(['active', 'completed', 'cancelled'])
-  status?: string;
+  @IsString()
+  budgetCurrency?: string;
+
+  @ApiPropertyOptional({ enum: TRIP_STATUSES })
+  @IsOptional()
+  @IsIn(TRIP_STATUSES)
+  status?: TripStatus;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  coverImage?: string;
 }

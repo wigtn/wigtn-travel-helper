@@ -13,6 +13,7 @@ import { ExpenseModule } from './modules/expense/expense.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { ExchangeRateModule } from './modules/exchange-rate/exchange-rate.module';
 import { AIModule } from './modules/ai/ai.module';
+import { SyncModule } from './modules/sync/sync.module';
 
 // Config
 import configuration from './config/configuration';
@@ -44,6 +45,7 @@ import configuration from './config/configuration';
     WalletModule,
     ExchangeRateModule,
     AIModule,
+    SyncModule,
   ],
 })
 export class AppModule {}

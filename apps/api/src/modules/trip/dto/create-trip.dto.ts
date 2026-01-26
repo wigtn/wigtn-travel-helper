@@ -9,12 +9,13 @@ import {
   MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { CreateTripDto as ICreateTripDto, VALIDATION } from '@wigtn/shared';
 import { CreateDestinationDto } from './create-destination.dto';
 
-export class CreateTripDto {
+export class CreateTripDto implements ICreateTripDto {
   @ApiProperty({ example: '유럽 배낭여행' })
   @IsString()
-  @MaxLength(200)
+  @MaxLength(VALIDATION.TRIP_NAME_MAX)
   name: string;
 
   @ApiProperty({ example: '2025-01-15' })
@@ -36,10 +37,9 @@ export class CreateTripDto {
   @IsString()
   budgetCurrency?: string;
 
-  @ApiPropertyOptional({ type: [CreateDestinationDto] })
-  @IsOptional()
+  @ApiProperty({ type: [CreateDestinationDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreateDestinationDto)
-  destinations?: CreateDestinationDto[];
+  destinations: CreateDestinationDto[];
 }
