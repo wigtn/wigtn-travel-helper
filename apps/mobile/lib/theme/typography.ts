@@ -40,6 +40,13 @@ export const typography = {
     letterSpacing: -0.2,
     fontFamily,
   },
+  headlineSmall: {
+    fontSize: 18,
+    lineHeight: 26,
+    fontWeight: '600' as TextStyle['fontWeight'],
+    letterSpacing: -0.1,
+    fontFamily,
+  },
 
   // Title - 카드 타이틀
   titleLarge: {

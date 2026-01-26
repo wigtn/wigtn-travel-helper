@@ -1,7 +1,8 @@
-// Travel Helper v2.0 - Database Queries
+// Travel Helper v1.1 - Database Queries (Simplified)
+// PRD v1.1 기준 - 지갑/환전 기능 제외
 
 import { getDatabase } from './schema';
-import { Trip, Destination, Wallet, WalletTransaction, Expense, ExchangeRateCache } from '../types';
+import { Trip, Destination, Expense, ExchangeRateCache } from '../types';
 
 // ============ TRIPS ============
 
@@ -30,25 +31,22 @@ export async function getActiveTrips(): Promise<Trip[]> {
 export async function createTrip(trip: Trip): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    'INSERT INTO trips (id, name, startDate, endDate, budget, coverImage, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [trip.id, trip.name, trip.startDate, trip.endDate, trip.budget ?? null, trip.coverImage ?? null, trip.createdAt]
+    'INSERT INTO trips (id, name, startDate, endDate, budget, createdAt) VALUES (?, ?, ?, ?, ?, ?)',
+    [trip.id, trip.name, trip.startDate, trip.endDate, trip.budget ?? null, trip.createdAt]
   );
 }
 
 export async function updateTrip(trip: Trip): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    'UPDATE trips SET name = ?, startDate = ?, endDate = ?, budget = ?, coverImage = ? WHERE id = ?',
-    [trip.name, trip.startDate, trip.endDate, trip.budget ?? null, trip.coverImage ?? null, trip.id]
+    'UPDATE trips SET name = ?, startDate = ?, endDate = ?, budget = ? WHERE id = ?',
+    [trip.name, trip.startDate, trip.endDate, trip.budget ?? null, trip.id]
   );
 }
 
 export async function deleteTrip(id: string): Promise<void> {
   const db = await getDatabase();
-  // CASCADE로 자동 삭제되지만 명시적으로도 삭제
   await db.runAsync('DELETE FROM expenses WHERE tripId = ?', [id]);
-  await db.runAsync('DELETE FROM wallet_transactions WHERE walletId IN (SELECT id FROM wallets WHERE tripId = ?)', [id]);
-  await db.runAsync('DELETE FROM wallets WHERE tripId = ?', [id]);
   await db.runAsync('DELETE FROM destinations WHERE tripId = ?', [id]);
   await db.runAsync('DELETE FROM trips WHERE id = ?', [id]);
 }
@@ -73,13 +71,13 @@ export async function getDestinationById(id: string): Promise<Destination | null
 export async function createDestination(destination: Destination): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    `INSERT INTO destinations (id, tripId, country, city, currency, startDate, endDate, orderIndex, createdAt)
+    `INSERT INTO destinations (id, tripId, country, countryName, currency, startDate, endDate, orderIndex, createdAt)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       destination.id,
       destination.tripId,
       destination.country,
-      destination.city ?? null,
+      destination.countryName ?? null,
       destination.currency,
       destination.startDate ?? null,
       destination.endDate ?? null,
@@ -92,10 +90,10 @@ export async function createDestination(destination: Destination): Promise<void>
 export async function updateDestination(destination: Destination): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    `UPDATE destinations SET country = ?, city = ?, currency = ?, startDate = ?, endDate = ?, orderIndex = ? WHERE id = ?`,
+    `UPDATE destinations SET country = ?, countryName = ?, currency = ?, startDate = ?, endDate = ?, orderIndex = ? WHERE id = ?`,
     [
       destination.country,
-      destination.city ?? null,
+      destination.countryName ?? null,
       destination.currency,
       destination.startDate ?? null,
       destination.endDate ?? null,
@@ -130,94 +128,12 @@ export async function getCurrentDestination(tripId: string): Promise<Destination
   return firstDest || null;
 }
 
-// ============ WALLETS ============
-
-export async function getWalletsByTripId(tripId: string): Promise<Wallet[]> {
-  const db = await getDatabase();
-  const result = await db.getAllAsync<Wallet>(
-    'SELECT * FROM wallets WHERE tripId = ? ORDER BY createdAt ASC',
-    [tripId]
-  );
-  return result;
-}
-
-export async function getWalletById(id: string): Promise<Wallet | null> {
-  const db = await getDatabase();
-  const result = await db.getFirstAsync<Wallet>('SELECT * FROM wallets WHERE id = ?', [id]);
-  return result || null;
-}
-
-export async function createWallet(wallet: Wallet): Promise<void> {
-  const db = await getDatabase();
-  await db.runAsync(
-    'INSERT INTO wallets (id, tripId, currency, name, createdAt) VALUES (?, ?, ?, ?, ?)',
-    [wallet.id, wallet.tripId, wallet.currency, wallet.name ?? null, wallet.createdAt]
-  );
-}
-
-export async function updateWallet(wallet: Wallet): Promise<void> {
-  const db = await getDatabase();
-  await db.runAsync(
-    'UPDATE wallets SET currency = ?, name = ? WHERE id = ?',
-    [wallet.currency, wallet.name ?? null, wallet.id]
-  );
-}
-
-export async function deleteWallet(id: string): Promise<void> {
-  const db = await getDatabase();
-  await db.runAsync('DELETE FROM wallet_transactions WHERE walletId = ?', [id]);
-  await db.runAsync('DELETE FROM wallets WHERE id = ?', [id]);
-}
-
-// 지갑 잔액 계산
-export async function getWalletBalance(walletId: string): Promise<number> {
-  const db = await getDatabase();
-  const result = await db.getFirstAsync<{ balance: number }>(
-    'SELECT COALESCE(SUM(amount), 0) as balance FROM wallet_transactions WHERE walletId = ?',
-    [walletId]
-  );
-  return result?.balance ?? 0;
-}
-
-// ============ WALLET TRANSACTIONS ============
-
-export async function getWalletTransactions(walletId: string): Promise<WalletTransaction[]> {
-  const db = await getDatabase();
-  const result = await db.getAllAsync<WalletTransaction>(
-    'SELECT * FROM wallet_transactions WHERE walletId = ? ORDER BY createdAt DESC',
-    [walletId]
-  );
-  return result;
-}
-
-export async function createWalletTransaction(transaction: WalletTransaction): Promise<void> {
-  const db = await getDatabase();
-  await db.runAsync(
-    `INSERT INTO wallet_transactions (id, walletId, type, amount, exchangeRate, memo, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [
-      transaction.id,
-      transaction.walletId,
-      transaction.type,
-      transaction.amount,
-      transaction.exchangeRate ?? null,
-      transaction.memo ?? null,
-      transaction.createdAt,
-    ]
-  );
-}
-
-export async function deleteWalletTransaction(id: string): Promise<void> {
-  const db = await getDatabase();
-  await db.runAsync('DELETE FROM wallet_transactions WHERE id = ?', [id]);
-}
-
 // ============ EXPENSES ============
 
 export async function getExpensesByTripId(tripId: string): Promise<Expense[]> {
   const db = await getDatabase();
   const result = await db.getAllAsync<Expense>(
-    'SELECT * FROM expenses WHERE tripId = ? ORDER BY date DESC, time DESC, createdAt DESC',
+    'SELECT * FROM expenses WHERE tripId = ? ORDER BY date DESC, createdAt DESC',
     [tripId]
   );
   return result;
@@ -226,7 +142,7 @@ export async function getExpensesByTripId(tripId: string): Promise<Expense[]> {
 export async function getExpensesByDate(tripId: string, date: string): Promise<Expense[]> {
   const db = await getDatabase();
   const result = await db.getAllAsync<Expense>(
-    'SELECT * FROM expenses WHERE tripId = ? AND date = ? ORDER BY time DESC, createdAt DESC',
+    'SELECT * FROM expenses WHERE tripId = ? AND date = ? ORDER BY createdAt DESC',
     [tripId, date]
   );
   return result;
@@ -235,18 +151,23 @@ export async function getExpensesByDate(tripId: string, date: string): Promise<E
 export async function getExpensesByDestination(destinationId: string): Promise<Expense[]> {
   const db = await getDatabase();
   const result = await db.getAllAsync<Expense>(
-    'SELECT * FROM expenses WHERE destinationId = ? ORDER BY date DESC, time DESC, createdAt DESC',
+    'SELECT * FROM expenses WHERE destinationId = ? ORDER BY date DESC, createdAt DESC',
     [destinationId]
   );
   return result;
 }
 
+export async function getExpenseById(id: string): Promise<Expense | null> {
+  const db = await getDatabase();
+  const result = await db.getFirstAsync<Expense>('SELECT * FROM expenses WHERE id = ?', [id]);
+  return result || null;
+}
+
 export async function createExpense(expense: Expense): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    `INSERT INTO expenses (id, tripId, destinationId, amount, currency, amountKRW, exchangeRate,
-     paymentMethod, walletId, category, memo, date, time, receiptImage, ocrProcessed, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO expenses (id, tripId, destinationId, amount, currency, amountKRW, exchangeRate, category, memo, date, createdAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       expense.id,
       expense.tripId,
@@ -255,14 +176,9 @@ export async function createExpense(expense: Expense): Promise<void> {
       expense.currency,
       expense.amountKRW,
       expense.exchangeRate,
-      expense.paymentMethod,
-      expense.walletId ?? null,
       expense.category,
       expense.memo ?? null,
       expense.date,
-      expense.time ?? null,
-      expense.receiptImage ?? null,
-      expense.ocrProcessed ? 1 : 0,
       expense.createdAt,
     ]
   );
@@ -272,22 +188,16 @@ export async function updateExpense(expense: Expense): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `UPDATE expenses SET destinationId = ?, amount = ?, currency = ?, amountKRW = ?, exchangeRate = ?,
-     paymentMethod = ?, walletId = ?, category = ?, memo = ?, date = ?, time = ?,
-     receiptImage = ?, ocrProcessed = ? WHERE id = ?`,
+     category = ?, memo = ?, date = ? WHERE id = ?`,
     [
       expense.destinationId ?? null,
       expense.amount,
       expense.currency,
       expense.amountKRW,
       expense.exchangeRate,
-      expense.paymentMethod,
-      expense.walletId ?? null,
       expense.category,
       expense.memo ?? null,
       expense.date,
-      expense.time ?? null,
-      expense.receiptImage ?? null,
-      expense.ocrProcessed ? 1 : 0,
       expense.id,
     ]
   );
@@ -346,6 +256,23 @@ export async function getExpensesByCurrency(tripId: string): Promise<Record<stri
     byCurrency[row.currency] = { amount: row.totalAmount, amountKRW: row.totalKRW };
   }
   return byCurrency;
+}
+
+// 날짜별 지출 합계 (캘린더용)
+export async function getExpensesByDateRange(tripId: string, startDate: string, endDate: string): Promise<Record<string, number>> {
+  const db = await getDatabase();
+  const result = await db.getAllAsync<{ date: string; total: number }>(
+    `SELECT date, SUM(amountKRW) as total FROM expenses
+     WHERE tripId = ? AND date >= ? AND date <= ?
+     GROUP BY date`,
+    [tripId, startDate, endDate]
+  );
+
+  const byDate: Record<string, number> = {};
+  for (const row of result) {
+    byDate[row.date] = row.total;
+  }
+  return byDate;
 }
 
 // ============ EXCHANGE RATES ============

@@ -1,70 +1,34 @@
-// API Response Types
+// @wigtn/shared - API Response Types
+// Data Schema Contract SSOT
 
+/** 성공 응답 */
 export interface ApiResponse<T> {
   success: true;
   data: T;
   meta?: Record<string, unknown>;
 }
 
+/** 에러 응답 */
 export interface ApiError {
   success: false;
   error: {
-    code: string;
-    message: string;
-    details?: Record<string, unknown>;
+    code: string;             // e.g., "VALIDATION_ERROR", "NOT_FOUND"
+    message: string;          // 사용자 표시용
+    details?: Record<string, unknown>; // 개발자용 상세
   };
 }
 
+/** API 결과 (성공 | 실패) */
 export type ApiResult<T> = ApiResponse<T> | ApiError;
 
-// Auth Types
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-}
-
-export interface LoginDto {
-  email: string;
-  password: string;
-}
-
-export interface RegisterDto {
-  email: string;
-  password: string;
-  name: string;
-}
-
-export interface SocialLoginDto {
-  provider: 'apple' | 'google';
-  idToken: string;
-}
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  provider: 'local' | 'apple' | 'google';
-  createdAt: string;
-}
-
-// Exchange Rate
-export interface ExchangeRates {
-  base: string;
-  rates: Record<string, number>;
-  lastUpdated: string;
-}
-
-export interface ConvertCurrencyDto {
-  from: string;
-  to: string;
-  amount: number;
-}
-
-export interface ConvertCurrencyResponse {
-  from: string;
-  to: string;
-  amount: number;
-  result: number;
-  rate: number;
-}
+/** 표준 에러 코드 */
+export type ErrorCode =
+  | 'VALIDATION_ERROR'        // 400
+  | 'UNAUTHORIZED'            // 401
+  | 'FORBIDDEN'               // 403
+  | 'NOT_FOUND'               // 404
+  | 'CONFLICT'                // 409
+  | 'RATE_LIMIT'              // 429
+  | 'INTERNAL_ERROR'          // 500
+  | 'AI_SERVICE_ERROR'        // 503
+  | 'EXCHANGE_RATE_ERROR';    // 503

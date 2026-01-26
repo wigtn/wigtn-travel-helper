@@ -52,3 +52,15 @@ export function parseTime(timeString: string): { hours: number; minutes: number 
   }
   return { hours: 0, minutes: 0 };
 }
+
+const DAY_NAMES = ['일', '월', '화', '수', '목', '금', '토'];
+
+export function getDayOfWeek(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return DAY_NAMES[d.getDay()];
+}
+
+export function getMonthYear(date: Date | string): { year: number; month: number } {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return { year: d.getFullYear(), month: d.getMonth() };
+}

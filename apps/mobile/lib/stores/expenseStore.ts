@@ -1,11 +1,11 @@
-// Travel Helper v2.0 - Expense Store
+// Travel Helper v1.1 - Expense Store (Simplified)
+// PRD v1.1 기준 - 지갑 연동 제거
 
 import { create } from 'zustand';
 import { generateId } from '../utils/uuid';
-import { Expense, ExpenseStats } from '../types';
-import { Category, PaymentMethod } from '../utils/constants';
+import { Expense, ExpenseStats, Destination, DayExpenseGroup } from '../types';
+import { Category } from '../utils/constants';
 import * as queries from '../db/queries';
-import { useWalletStore } from './walletStore';
 
 interface ExpenseState {
   expenses: Expense[];
@@ -16,12 +16,16 @@ interface ExpenseState {
   createExpense: (expense: Omit<Expense, 'id' | 'createdAt'>) => Promise<Expense>;
   updateExpense: (expense: Expense) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
+  getExpenseById: (id: string) => Promise<Expense | null>;
 
   // 통계
   getStats: (tripId: string) => ExpenseStats;
   getTotalByTrip: (tripId: string) => Promise<number>;
   getTodayTotal: (tripId: string) => Promise<{ totalKRW: number; byCurrency: Record<string, number> }>;
   getExpensesByCurrency: (tripId: string) => Promise<Record<string, { amount: number; amountKRW: number }>>;
+
+  // 다중 국가 레이어 (FR-008)
+  getExpensesByDateGrouped: (tripId: string, date: string, destinations: Destination[]) => DayExpenseGroup[];
 }
 
 export const useExpenseStore = create<ExpenseState>((set, get) => ({
@@ -47,43 +51,11 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     };
 
     await queries.createExpense(expense);
-
-    // 지갑 결제인 경우 지갑에서 차감
-    if (expense.paymentMethod === 'wallet' && expense.walletId) {
-      await useWalletStore.getState().addWithdraw(
-        expense.walletId,
-        expense.amount,
-        expense.memo || '지출'
-      );
-    }
-
     set((state) => ({ expenses: [expense, ...state.expenses] }));
     return expense;
   },
 
   updateExpense: async (expense) => {
-    const oldExpense = get().expenses.find(e => e.id === expense.id);
-
-    // 기존 지갑 결제였다면 원복
-    if (oldExpense?.paymentMethod === 'wallet' && oldExpense.walletId) {
-      // 기존 차감 취소 (입금 처리)
-      await useWalletStore.getState().addDeposit(
-        oldExpense.walletId,
-        oldExpense.amount,
-        undefined,
-        '지출 수정 - 취소'
-      );
-    }
-
-    // 새 지갑 결제라면 차감
-    if (expense.paymentMethod === 'wallet' && expense.walletId) {
-      await useWalletStore.getState().addWithdraw(
-        expense.walletId,
-        expense.amount,
-        expense.memo || '지출 수정'
-      );
-    }
-
     await queries.updateExpense(expense);
     set((state) => ({
       expenses: state.expenses.map((e) => (e.id === expense.id ? expense : e)),
@@ -91,22 +63,14 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
   },
 
   deleteExpense: async (id) => {
-    const expense = get().expenses.find(e => e.id === id);
-
-    // 지갑 결제였다면 잔액 복구
-    if (expense?.paymentMethod === 'wallet' && expense.walletId) {
-      await useWalletStore.getState().addDeposit(
-        expense.walletId,
-        expense.amount,
-        undefined,
-        '지출 삭제 - 환불'
-      );
-    }
-
     await queries.deleteExpense(id);
     set((state) => ({
       expenses: state.expenses.filter((e) => e.id !== id),
     }));
+  },
+
+  getExpenseById: async (id) => {
+    return await queries.getExpenseById(id);
   },
 
   getStats: (tripId) => {
@@ -159,5 +123,41 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
 
   getExpensesByCurrency: async (tripId) => {
     return await queries.getExpensesByCurrency(tripId);
+  },
+
+  // PRD FR-008: 특정 날짜의 지출을 국가별로 그룹화
+  getExpensesByDateGrouped: (tripId, date, destinations) => {
+    const dayExpenses = get().expenses.filter((e) => e.tripId === tripId && e.date === date);
+    const groups: DayExpenseGroup[] = [];
+
+    // 방문지별로 그룹화
+    const grouped = new Map<string, Expense[]>();
+
+    for (const expense of dayExpenses) {
+      const destId = expense.destinationId || 'unknown';
+      const list = grouped.get(destId) || [];
+      list.push(expense);
+      grouped.set(destId, list);
+    }
+
+    // DayExpenseGroup 배열로 변환
+    for (const [destId, expenses] of grouped) {
+      const destination = destinations.find((d) => d.id === destId);
+      if (destination) {
+        const totalLocal = expenses.reduce((sum, e) => sum + e.amount, 0);
+        const totalKRW = expenses.reduce((sum, e) => sum + e.amountKRW, 0);
+
+        groups.push({
+          date,
+          destination,
+          expenses,
+          totalLocal,
+          totalKRW,
+        });
+      }
+    }
+
+    // 방문 순서대로 정렬
+    return groups.sort((a, b) => a.destination.orderIndex - b.destination.orderIndex);
   },
 }));

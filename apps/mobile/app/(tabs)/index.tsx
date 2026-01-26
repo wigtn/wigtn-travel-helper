@@ -1,4 +1,6 @@
-// Travel Helper v2.0 - Home Screen
+// Travel Helper v1.1 - Home Screen
+// PRD FR-007: 글로벌 통화 토글 적용
+// PRD FR-008: 다중 국가 레이어 뷰 적용
 
 import { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
@@ -7,12 +9,13 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../../lib/theme';
 import { useTripStore } from '../../lib/stores/tripStore';
 import { useExpenseStore } from '../../lib/stores/expenseStore';
-import { useWalletStore } from '../../lib/stores/walletStore';
-import { Card, FAB, ProgressBar, EmptyState, AmountDisplay, CategoryIcon } from '../../components/ui';
-import { formatKRW, formatCurrency, getCurrencySymbol } from '../../lib/utils/currency';
-import { formatDisplayDate, getDaysBetween } from '../../lib/utils/date';
-import { getCurrencyInfo, CATEGORIES, PAYMENT_METHODS } from '../../lib/utils/constants';
-import { Trip, Destination, WalletBalance } from '../../lib/types';
+import { useSettingsStore } from '../../lib/stores/settingsStore';
+import { Card, FAB, ProgressBar, EmptyState, CategoryIcon, CurrencyToggle } from '../../components/ui';
+import { DayLayerView } from '../../components/layer';
+import { formatKRW, formatCurrency } from '../../lib/utils/currency';
+import { formatDisplayDate, getDaysBetween, getToday } from '../../lib/utils/date';
+import { getCurrencyInfo, CATEGORIES } from '../../lib/utils/constants';
+import { Trip, DayExpenseGroup } from '../../lib/types';
 
 export default function HomeScreen() {
   const { colors, spacing, typography, borderRadius, isDark } = useTheme();
@@ -27,14 +30,16 @@ export default function HomeScreen() {
     setActiveTrip,
     getCurrentLocation,
   } = useTripStore();
-  const { expenses, loadExpenses, getTodayTotal, getTotalByTrip, getExpensesByCurrency } = useExpenseStore();
-  const { walletBalances, loadWallets } = useWalletStore();
+  const { expenses, loadExpenses, getTodayTotal, getTotalByTrip, getExpensesByCurrency, getExpensesByDateGrouped } = useExpenseStore();
+  const { currencyDisplayMode } = useSettingsStore();
+  const showInKRW = currencyDisplayMode === 'krw';
 
   const [todayExpense, setTodayExpense] = useState<{ totalKRW: number; byCurrency: Record<string, number> }>({ totalKRW: 0, byCurrency: {} });
   const [totalExpense, setTotalExpense] = useState(0);
   const [expensesByCurrency, setExpensesByCurrency] = useState<Record<string, { amount: number; amountKRW: number }>>({});
   const [refreshing, setRefreshing] = useState(false);
   const [dayIndex, setDayIndex] = useState(1);
+  const [todayGroups, setTodayGroups] = useState<DayExpenseGroup[]>([]);
 
   const loadData = useCallback(async () => {
     if (activeTrip) {
@@ -47,19 +52,22 @@ export default function HomeScreen() {
       setTotalExpense(total);
       setExpensesByCurrency(byCurrency);
       setDayIndex(location.dayIndex);
+
+      // 오늘의 다중 국가 레이어
+      const groups = getExpensesByDateGrouped(activeTrip.id, getToday(), destinations);
+      setTodayGroups(groups);
     }
-  }, [activeTrip?.id]);
+  }, [activeTrip?.id, destinations, expenses]);
 
   useEffect(() => {
     loadData();
-  }, [loadData, expenses]);
+  }, [loadData]);
 
   const onRefresh = async () => {
     setRefreshing(true);
     await loadTrips();
     await loadActiveTrips();
     if (activeTrip) {
-      await loadWallets(activeTrip.id);
       await loadExpenses(activeTrip.id);
     }
     await loadData();
@@ -70,20 +78,22 @@ export default function HomeScreen() {
     setActiveTrip(trip);
   };
 
-  const recentExpenses = expenses.slice(0, 5);
   const primaryCurrency = currentDestination?.currency || destinations[0]?.currency;
   const todayLocalAmount = primaryCurrency ? todayExpense.byCurrency[primaryCurrency] || 0 : 0;
   const totalLocalAmount = primaryCurrency ? expensesByCurrency[primaryCurrency]?.amount || 0 : 0;
 
-  const getPaymentIcon = (method: string) => {
-    const pm = PAYMENT_METHODS.find(p => p.id === method);
-    return pm?.icon || 'payment';
-  };
+  // 통화 토글에 따른 금액 표시
+  const displayTodayAmount = showInKRW
+    ? formatKRW(todayExpense.totalKRW)
+    : primaryCurrency
+      ? formatCurrency(todayLocalAmount, primaryCurrency)
+      : formatKRW(todayExpense.totalKRW);
 
-  const getPaymentLabel = (method: string) => {
-    const pm = PAYMENT_METHODS.find(p => p.id === method);
-    return pm?.label || method;
-  };
+  const displayTotalAmount = showInKRW
+    ? formatKRW(totalExpense)
+    : primaryCurrency
+      ? formatCurrency(totalLocalAmount, primaryCurrency)
+      : formatKRW(totalExpense);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -149,43 +159,34 @@ export default function HomeScreen() {
               </ScrollView>
             )}
 
-            {/* 현재 위치 + 오늘/총 지출 카드 */}
-            <Card variant="elevated" style={{ marginTop: spacing.base }}>
-              {/* 현재 위치 */}
+            {/* 통화 토글 + 현재 위치 */}
+            <View style={[styles.toggleRow, { marginTop: spacing.base, marginBottom: spacing.md }]}>
+              <CurrencyToggle />
               {currentDestination && (
-                <View style={[styles.locationRow, { marginBottom: spacing.base }]}>
+                <View style={styles.locationBadge}>
                   <Text style={styles.locationFlag}>
                     {getCurrencyInfo(currentDestination.currency)?.flag}
                   </Text>
-                  <View>
-                    <Text style={[typography.labelMedium, { color: colors.textSecondary }]}>
-                      현재 위치 (Day {dayIndex})
-                    </Text>
-                    <Text style={[typography.titleMedium, { color: colors.text }]}>
-                      {currentDestination.city || currentDestination.country}
-                    </Text>
-                  </View>
+                  <Text style={[typography.labelSmall, { color: colors.textSecondary }]}>
+                    Day {dayIndex}
+                  </Text>
                 </View>
               )}
+            </View>
 
+            {/* 오늘/총 지출 카드 */}
+            <Card variant="elevated">
               {/* 오늘 지출 */}
               <View style={styles.expenseSection}>
                 <Text style={[typography.labelMedium, { color: colors.textSecondary }]}>
                   오늘 지출
                 </Text>
-                {primaryCurrency ? (
-                  <AmountDisplay
-                    amount={todayLocalAmount}
-                    currency={primaryCurrency}
-                    amountKRW={todayExpense.totalKRW}
-                    size="large"
-                    align="left"
-                    primaryColor={colors.primary}
-                    showFlag={false}
-                  />
-                ) : (
-                  <Text style={[typography.displayMedium, { color: colors.primary }]}>
-                    {formatKRW(todayExpense.totalKRW)}
+                <Text style={[typography.displayMedium, { color: colors.primary }]}>
+                  {displayTodayAmount}
+                </Text>
+                {!showInKRW && todayExpense.totalKRW > 0 && (
+                  <Text style={[typography.bodySmall, { color: colors.textTertiary }]}>
+                    ≈ {formatKRW(todayExpense.totalKRW)}
                   </Text>
                 )}
               </View>
@@ -197,18 +198,12 @@ export default function HomeScreen() {
                 <Text style={[typography.labelMedium, { color: colors.textSecondary }]}>
                   총 지출
                 </Text>
-                {primaryCurrency ? (
-                  <AmountDisplay
-                    amount={totalLocalAmount}
-                    currency={primaryCurrency}
-                    amountKRW={totalExpense}
-                    size="medium"
-                    align="left"
-                    showFlag={false}
-                  />
-                ) : (
-                  <Text style={[typography.titleLarge, { color: colors.text }]}>
-                    {formatKRW(totalExpense)}
+                <Text style={[typography.titleLarge, { color: colors.text }]}>
+                  {displayTotalAmount}
+                </Text>
+                {!showInKRW && totalExpense > 0 && (
+                  <Text style={[typography.bodySmall, { color: colors.textTertiary }]}>
+                    ≈ {formatKRW(totalExpense)}
                   </Text>
                 )}
               </View>
@@ -233,114 +228,23 @@ export default function HomeScreen() {
               )}
             </Card>
 
-            {/* 환전 지갑 */}
-            {walletBalances.length > 0 && (
-              <View style={{ marginTop: spacing.xl }}>
-                <Text style={[typography.titleMedium, { color: colors.text, marginBottom: spacing.md }]}>
-                  환전 지갑
-                </Text>
-                {walletBalances.map((wb) => {
-                  const currencyInfo = getCurrencyInfo(wb.wallet.currency);
-                  const usedAmount = wb.totalDeposit - wb.balance;
-                  const progress = wb.totalDeposit > 0 ? wb.balance / wb.totalDeposit : 1;
-
-                  return (
-                    <Card
-                      key={wb.wallet.id}
-                      variant="outlined"
-                      style={{ marginBottom: spacing.sm }}
-                      onPress={() => router.push(`/trip/${activeTrip.id}`)}
-                    >
-                      <View style={styles.walletRow}>
-                        <View style={styles.walletInfo}>
-                          <View style={styles.walletHeader}>
-                            <Text style={styles.walletFlag}>{currencyInfo?.flag}</Text>
-                            <Text style={[typography.titleSmall, { color: colors.text }]}>
-                              {wb.wallet.name || currencyInfo?.name || wb.wallet.currency}
-                            </Text>
-                          </View>
-                          <Text style={[typography.titleMedium, { color: colors.text, marginTop: spacing.xs }]}>
-                            {formatCurrency(wb.balance, wb.wallet.currency)}
-                            <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>
-                              {' '}/ {formatCurrency(wb.totalDeposit, wb.wallet.currency)}
-                            </Text>
-                          </Text>
-                        </View>
-                        <Text style={[typography.labelMedium, { color: colors.textSecondary }]}>
-                          {Math.round(progress * 100)}%
-                        </Text>
-                      </View>
-                      <ProgressBar
-                        progress={progress}
-                        variant="wallet"
-                        height={6}
-                        style={{ marginTop: spacing.sm }}
-                      />
-                    </Card>
-                  );
-                })}
-              </View>
-            )}
-
-            {/* 최근 지출 */}
+            {/* 오늘의 지출 - 다중 국가 레이어 뷰 */}
             <View style={{ marginTop: spacing.xl }}>
               <Text style={[typography.titleMedium, { color: colors.text, marginBottom: spacing.md }]}>
-                최근 지출
+                오늘의 지출
               </Text>
-              {recentExpenses.length > 0 ? (
-                recentExpenses.map((expense) => {
-                  const categoryInfo = CATEGORIES.find(c => c.id === expense.category);
-                  const categoryColor = isDark ? categoryInfo?.darkColor : categoryInfo?.lightColor;
-
-                  return (
-                    <Card
-                      key={expense.id}
-                      variant="default"
-                      style={{ marginBottom: spacing.sm }}
-                      onPress={() => router.push(`/expense/${expense.id}`)}
-                    >
-                      <View style={styles.expenseRow}>
-                        <CategoryIcon category={expense.category} size="medium" />
-                        <View style={styles.expenseInfo}>
-                          <Text style={[typography.titleSmall, { color: colors.text }]}>
-                            {categoryInfo?.label}
-                          </Text>
-                          <View style={styles.expenseMeta}>
-                            {expense.time && (
-                              <Text style={[typography.caption, { color: colors.textTertiary }]}>
-                                {expense.time}
-                              </Text>
-                            )}
-                            <Text style={[typography.caption, { color: colors.textTertiary }]}>
-                              {getPaymentLabel(expense.paymentMethod)}
-                            </Text>
-                          </View>
-                          {expense.memo && (
-                            <Text
-                              style={[typography.bodySmall, { color: colors.textSecondary, marginTop: 2 }]}
-                              numberOfLines={1}
-                            >
-                              {expense.memo}
-                            </Text>
-                          )}
-                        </View>
-                        <AmountDisplay
-                          amount={expense.amount}
-                          currency={expense.currency}
-                          amountKRW={expense.amountKRW}
-                          size="small"
-                          showFlag={false}
-                        />
-                      </View>
-                    </Card>
-                  );
-                })
+              {todayGroups.length > 0 ? (
+                <DayLayerView
+                  date={getToday()}
+                  groups={todayGroups}
+                  showHeader={false}
+                />
               ) : (
                 <Card variant="outlined">
                   <View style={styles.emptyExpense}>
                     <MaterialIcons name="receipt-long" size={32} color={colors.textTertiary} />
                     <Text style={[typography.bodyMedium, { color: colors.textSecondary, marginTop: spacing.sm }]}>
-                      아직 지출이 없어요
+                      오늘 아직 지출이 없어요
                     </Text>
                   </View>
                 </Card>
@@ -431,13 +335,18 @@ const styles = StyleSheet.create({
   tripTabFlag: {
     fontSize: 16,
   },
-  locationRow: {
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  locationBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 6,
   },
   locationFlag: {
-    fontSize: 32,
+    fontSize: 20,
   },
   expenseSection: {
     marginVertical: 8,
@@ -450,35 +359,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 6,
-  },
-  walletRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  walletInfo: {
-    flex: 1,
-  },
-  walletHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  walletFlag: {
-    fontSize: 20,
-  },
-  expenseRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  expenseInfo: {
-    flex: 1,
-  },
-  expenseMeta: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 2,
   },
   emptyExpense: {
     alignItems: 'center',

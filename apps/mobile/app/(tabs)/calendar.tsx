@@ -1,4 +1,5 @@
-// Travel Helper - Calendar Screen
+// Travel Helper v1.1 - Calendar Screen
+// PRD FR-007: 글로벌 통화 토글 적용
 
 import React, { useEffect, useState, useMemo } from 'react';
 import {
@@ -16,10 +17,11 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../../lib/theme';
 import { useTripStore } from '../../lib/stores/tripStore';
 import { useExpenseStore } from '../../lib/stores/expenseStore';
-import { Card, CategoryIcon, EmptyState } from '../../components/ui';
+import { useSettingsStore } from '../../lib/stores/settingsStore';
+import { Card, CategoryIcon, EmptyState, CurrencyToggle } from '../../components/ui';
 import { formatKRW, formatCurrency, getCurrencyFlag } from '../../lib/utils/currency';
 import { getDaysInMonth, getFirstDayOfMonth, formatDate, formatDisplayDate } from '../../lib/utils/date';
-import { CATEGORIES, PAYMENT_METHODS } from '../../lib/utils/constants';
+import { CATEGORIES, getCurrencyInfo } from '../../lib/utils/constants';
 import { Expense } from '../../lib/types';
 
 // Android에서 LayoutAnimation 활성화
@@ -30,9 +32,11 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
 export default function CalendarScreen() {
-  const { colors, spacing, typography, borderRadius, shadows } = useTheme();
+  const { colors, spacing, typography } = useTheme();
   const { activeTrip, destinations } = useTripStore();
   const { expenses, loadExpenses } = useExpenseStore();
+  const { currencyDisplayMode } = useSettingsStore();
+  const showInKRW = currencyDisplayMode === 'krw';
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
@@ -88,6 +92,14 @@ export default function CalendarScreen() {
   const getDestinationInfo = (destinationId?: string) => {
     if (!destinationId) return null;
     return destinations.find(d => d.id === destinationId);
+  };
+
+  // 통화 토글에 따른 금액 표시
+  const formatAmount = (expense: Expense) => {
+    if (showInKRW) {
+      return formatKRW(expense.amountKRW);
+    }
+    return formatCurrency(expense.amount, expense.currency);
   };
 
   const renderCalendar = () => {
@@ -168,7 +180,6 @@ export default function CalendarScreen() {
                 </View>
                 {expensesByDate[expandedDate].expenses.map((expense) => {
                   const dest = getDestinationInfo(expense.destinationId);
-                  const paymentInfo = PAYMENT_METHODS.find(p => p.id === expense.paymentMethod);
                   return (
                     <TouchableOpacity
                       key={expense.id}
@@ -184,17 +195,10 @@ export default function CalendarScreen() {
                           <Text style={[typography.bodyMedium, { color: colors.text }]}>
                             {CATEGORIES.find((c) => c.id === expense.category)?.label}
                           </Text>
-                          {paymentInfo && (
-                            <View style={[styles.paymentBadge, { backgroundColor: colors.background }]}>
-                              <MaterialIcons
-                                name={paymentInfo.icon as keyof typeof MaterialIcons.glyphMap}
-                                size={12}
-                                color={colors.textSecondary}
-                              />
-                              <Text style={[typography.caption, { color: colors.textSecondary, marginLeft: 2 }]}>
-                                {paymentInfo.label}
-                              </Text>
-                            </View>
+                          {dest && (
+                            <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                              {getCurrencyInfo(dest.currency)?.flag}
+                            </Text>
                           )}
                         </View>
                         {expense.memo && (
@@ -205,19 +209,16 @@ export default function CalendarScreen() {
                             {expense.memo}
                           </Text>
                         )}
-                        {dest && (
-                          <Text style={[typography.caption, { color: colors.textTertiary }]}>
-                            {getCurrencyFlag(dest.currency)} {dest.country}
-                          </Text>
-                        )}
                       </View>
                       <View style={styles.expenseAmount}>
                         <Text style={[typography.titleSmall, { color: colors.text }]}>
-                          {formatCurrency(expense.amount, expense.currency)}
+                          {formatAmount(expense)}
                         </Text>
-                        <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                          {formatKRW(expense.amountKRW)}
-                        </Text>
+                        {!showInKRW && (
+                          <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                            {formatKRW(expense.amountKRW)}
+                          </Text>
+                        )}
                       </View>
                     </TouchableOpacity>
                   );
@@ -274,6 +275,11 @@ export default function CalendarScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* 통화 토글 */}
+      <View style={[styles.toggleContainer, { paddingHorizontal: spacing.base }]}>
+        <CurrencyToggle />
+      </View>
+
       {/* 이번 달 요약 */}
       <Card style={[styles.summaryCard, { margin: spacing.base }]}>
         <View style={styles.summaryRow}>
@@ -287,12 +293,9 @@ export default function CalendarScreen() {
           </View>
           <View style={[styles.expenseCount, { backgroundColor: colors.primaryLight }]}>
             <Text style={[typography.titleSmall, { color: colors.primary }]}>
-              {Object.values(expensesByDate)
-                .filter((_, i, arr) => {
-                  const dates = Object.keys(expensesByDate);
-                  return dates[i].startsWith(`${year}-${String(month + 1).padStart(2, '0')}`);
-                })
-                .reduce((sum, data) => sum + data.expenses.length, 0)}건
+              {Object.entries(expensesByDate)
+                .filter(([date]) => date.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`))
+                .reduce((sum, [, data]) => sum + data.expenses.length, 0)}건
             </Text>
           </View>
         </View>
@@ -347,6 +350,9 @@ const styles = StyleSheet.create({
   },
   monthInfo: {
     alignItems: 'center',
+  },
+  toggleContainer: {
+    marginBottom: 8,
   },
   summaryCard: {
     padding: 16,
@@ -418,13 +424,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  paymentBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
   },
   expenseAmount: {
     alignItems: 'flex-end',

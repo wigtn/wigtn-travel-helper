@@ -1,4 +1,5 @@
-// Travel Helper v2.0 - New Trip Screen
+// Travel Helper v1.1 - New Trip Screen
+// PRD v1.1: 여행 생성 화면
 
 import { useState } from 'react';
 import {

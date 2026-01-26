@@ -1,8 +1,9 @@
-// Travel Helper v2.0 - Trip Store
+// Travel Helper v1.1 - Trip Store (Simplified)
+// PRD v1.1 기준 - 지갑 연동 제거
 
 import { create } from 'zustand';
 import { generateId } from '../utils/uuid';
-import { Trip, Destination, TripWithDetails, WalletBalance, CurrentLocation } from '../types';
+import { Trip, Destination, CurrentLocation } from '../types';
 import * as queries from '../db/queries';
 
 interface TripState {

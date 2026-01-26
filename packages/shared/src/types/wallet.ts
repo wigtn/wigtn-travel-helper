@@ -1,7 +1,12 @@
-// Wallet Types
+// @wigtn/shared - Wallet Types
+// Data Schema Contract SSOT
+// NOTE: MVP에서는 제외 (PRD v1.1 Non-Goal)
+// 추후 확장을 위해 타입 정의만 유지
 
 import { BaseEntity } from './common';
-import { WalletTransactionType, SupportedCurrency } from '../constants';
+import { SupportedCurrency } from './exchange-rate';
+
+export type WalletTransactionType = 'deposit' | 'withdraw' | 'adjust';
 
 export interface Wallet extends BaseEntity {
   tripId: string;

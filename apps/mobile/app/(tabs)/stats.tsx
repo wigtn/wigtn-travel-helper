@@ -1,12 +1,14 @@
-// Travel Helper - Stats Screen
+// Travel Helper v1.1 - Stats Screen
+// PRD FR-007: 글로벌 통화 토글 연동
 
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../../lib/theme';
 import { useTripStore } from '../../lib/stores/tripStore';
 import { useExpenseStore } from '../../lib/stores/expenseStore';
-import { Card, ProgressBar, CategoryIcon, EmptyState } from '../../components/ui';
+import { useSettingsStore } from '../../lib/stores/settingsStore';
+import { Card, ProgressBar, CategoryIcon, EmptyState, CurrencyToggle } from '../../components/ui';
 import { formatKRW, formatCurrency, getCurrencyFlag } from '../../lib/utils/currency';
 import { CATEGORIES, Category } from '../../lib/utils/constants';
 import { getDaysBetween, formatDisplayDate } from '../../lib/utils/date';
@@ -17,9 +19,10 @@ export default function StatsScreen() {
   const { colors, spacing, typography, borderRadius, isDark } = useTheme();
   const { activeTrip, destinations } = useTripStore();
   const { expenses, loadExpenses, getStats } = useExpenseStore();
+  const { currencyDisplayMode } = useSettingsStore();
+  const showInKRW = currencyDisplayMode === 'krw';
 
   const [activeTab, setActiveTab] = useState<TabType>('category');
-  const [showInKRW, setShowInKRW] = useState(false);
 
   useEffect(() => {
     if (activeTrip) {
@@ -86,11 +89,10 @@ export default function StatsScreen() {
       }));
   }, [stats]);
 
-  // 방문지별 지출 정렬 (로컬 통화 포함)
+  // 방문지별 지출 정렬
   const sortedDestinations = useMemo(() => {
     if (!stats || !destinations || !expenses) return [];
 
-    // 방문지별로 지출을 그룹화하고 로컬 통화 금액도 계산
     const destStats: Record<string, { amountKRW: number; localAmounts: Record<string, number> }> = {};
 
     for (const expense of expenses) {
@@ -118,12 +120,11 @@ export default function StatsScreen() {
       .sort((a, b) => b.amountKRW - a.amountKRW);
   }, [stats, destinations, expenses]);
 
-  // 카테고리별 지출 정렬 (로컬 통화 포함)
+  // 카테고리별 지출 정렬
   const sortedCategories = useMemo(() => {
     if (!stats || !expenses) return [];
 
-    // 카테고리별 로컬 통화 금액 계산
-    const categoryLocalAmounts: Record<Category, Record<string, number>> = {} as any;
+    const categoryLocalAmounts: Record<Category, Record<string, number>> = {} as Record<Category, Record<string, number>>;
 
     for (const expense of expenses) {
       if (!categoryLocalAmounts[expense.category]) {
@@ -147,14 +148,6 @@ export default function StatsScreen() {
       })
       .sort((a, b) => b.amountKRW - a.amountKRW);
   }, [stats, expenses, mainCurrency]);
-
-  // 금액 포맷 헬퍼
-  const formatAmount = (amountKRW: number, localAmount?: number, currency?: string) => {
-    if (showInKRW || !localAmount || !currency) {
-      return formatKRW(amountKRW);
-    }
-    return formatCurrency(localAmount, currency);
-  };
 
   const tabs: { id: TabType; label: string; icon: string }[] = [
     { id: 'category', label: '카테고리', icon: 'category' },
@@ -192,29 +185,14 @@ export default function StatsScreen() {
       contentContainerStyle={[styles.content, { padding: spacing.base }]}
       showsVerticalScrollIndicator={false}
     >
-      {/* 통화 토글 */}
-      <View style={[styles.currencyToggle, { backgroundColor: colors.surface, borderRadius: borderRadius.md }]}>
-        <View style={styles.toggleLeft}>
-          <Text style={[typography.bodySmall, { color: colors.text }]}>
-            {getCurrencyFlag(mainCurrency)} {mainCurrency}
+      {/* 통화 토글 (FR-007 글로벌 연동) */}
+      <View style={styles.toggleRow}>
+        <CurrencyToggle />
+        {hasMultipleCurrencies && (
+          <Text style={[typography.caption, { color: colors.textSecondary }]}>
+            {getCurrencyFlag(mainCurrency)} 외 {Object.keys(stats.byCurrency).length - 1}개 통화
           </Text>
-          {hasMultipleCurrencies && (
-            <Text style={[typography.caption, { color: colors.textTertiary, marginLeft: 4 }]}>
-              외 {Object.keys(stats.byCurrency).length - 1}개
-            </Text>
-          )}
-        </View>
-        <View style={styles.toggleRight}>
-          <Text style={[typography.caption, { color: showInKRW ? colors.primary : colors.textSecondary }]}>
-            원화로 보기
-          </Text>
-          <Switch
-            value={showInKRW}
-            onValueChange={setShowInKRW}
-            trackColor={{ false: colors.border, true: colors.primaryLight }}
-            thumbColor={showInKRW ? colors.primary : colors.textTertiary}
-          />
-        </View>
+        )}
       </View>
 
       {/* 총 지출 카드 */}
@@ -223,15 +201,13 @@ export default function StatsScreen() {
           {activeTrip.name} 총 지출
         </Text>
         <Text style={[styles.totalValue, { color: colors.text }]}>
-          {showInKRW
+          {showInKRW || hasMultipleCurrencies
             ? formatKRW(stats.totalKRW)
-            : hasMultipleCurrencies
-              ? formatKRW(stats.totalKRW)
-              : formatCurrency(stats.byCurrency[mainCurrency]?.amount || 0, mainCurrency)}
+            : formatCurrency(stats.byCurrency[mainCurrency]?.amount || 0, mainCurrency)}
         </Text>
         {!showInKRW && !hasMultipleCurrencies && (
           <Text style={[typography.caption, { color: colors.textSecondary }]}>
-            ≈ {formatKRW(stats.totalKRW)}
+            = {formatKRW(stats.totalKRW)}
           </Text>
         )}
 
@@ -413,7 +389,7 @@ export default function StatsScreen() {
               </View>
               <View style={styles.detailRight}>
                 <Text style={[typography.bodyMedium, { color: colors.textSecondary }]}>
-                  ≈ {formatKRW(item.amountKRW)}
+                  = {formatKRW(item.amountKRW)}
                 </Text>
                 <Text style={[typography.caption, { color: colors.textSecondary }]}>
                   {Math.round((item.amountKRW / stats.totalKRW) * 100)}%
@@ -449,9 +425,7 @@ export default function StatsScreen() {
                   </Text>
                   <View style={{ marginLeft: spacing.sm }}>
                     <Text style={[typography.bodyMedium, { color: colors.text }]}>
-                      {item.destination?.city
-                        ? `${item.destination.country} · ${item.destination.city}`
-                        : item.destination?.country}
+                      {item.destination?.countryName || item.destination?.country}
                     </Text>
                     <Text style={[typography.titleSmall, { color: colors.primary }]}>
                       {formatCurrency(item.localAmount, item.destination?.currency || 'USD')}
@@ -460,7 +434,7 @@ export default function StatsScreen() {
                 </View>
                 <View style={styles.detailRight}>
                   <Text style={[typography.bodyMedium, { color: colors.textSecondary }]}>
-                    ≈ {formatKRW(item.amountKRW)}
+                    = {formatKRW(item.amountKRW)}
                   </Text>
                   <Text style={[typography.caption, { color: colors.textSecondary }]}>
                     {Math.round((item.amountKRW / stats.totalKRW) * 100)}%
@@ -485,20 +459,10 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: 40,
   },
-  currencyToggle: {
+  toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 12,
-  },
-  toggleLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  toggleRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
   },
   totalCard: {
     alignItems: 'center',

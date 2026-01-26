@@ -1,3 +1,6 @@
+// Travel Helper v1.1 - Edit Expense Screen
+// PRD v1.1: 지출 수정/삭제 화면
+
 import { useState, useEffect } from 'react';
 import {
   View,
@@ -8,34 +11,46 @@ import {
   Alert,
   ScrollView,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useTheme } from '../../lib/hooks/useTheme';
+import { useTheme } from '../../lib/theme';
 import { useExpenseStore } from '../../lib/stores/expenseStore';
 import { useExchangeRateStore } from '../../lib/stores/exchangeRateStore';
-import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
+import { useSettingsStore } from '../../lib/stores/settingsStore';
+import { Button, Card, BottomSheet, CategoryIcon } from '../../components/ui';
 import { CATEGORIES, Category } from '../../lib/utils/constants';
-import { formatKRW, getCurrencySymbol } from '../../lib/utils/currency';
-import { formatDate, formatFullDate } from '../../lib/utils/date';
+import { formatKRW, getCurrencySymbol, formatCurrency } from '../../lib/utils/currency';
+import { formatDate, formatFullDate, formatTime } from '../../lib/utils/date';
 import { Expense } from '../../lib/types';
 
 export default function EditExpenseScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { colors } = useTheme();
+  const { colors, spacing, typography, borderRadius } = useTheme();
   const { expenses, updateExpense, deleteExpense } = useExpenseStore();
   const { getRate, convert } = useExchangeRateStore();
+  const { hapticEnabled, currencyDisplayMode } = useSettingsStore();
 
   const [expense, setExpense] = useState<Expense | null>(null);
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<Category>('food');
   const [memo, setMemo] = useState('');
   const [date, setDate] = useState(new Date());
+  const [time, setTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showCategorySheet, setShowCategorySheet] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // 햅틱 피드백 헬퍼
+  const triggerHaptic = (style: Haptics.ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle.Light) => {
+    if (hapticEnabled) {
+      Haptics.impactAsync(style);
+    }
+  };
 
   useEffect(() => {
     const found = expenses.find((e) => e.id === id);
@@ -45,6 +60,13 @@ export default function EditExpenseScreen() {
       setCategory(found.category);
       setMemo(found.memo || '');
       setDate(new Date(found.date));
+      // 시간이 있으면 파싱
+      if (found.time) {
+        const [hours, minutes] = found.time.split(':').map(Number);
+        const timeDate = new Date();
+        timeDate.setHours(hours, minutes, 0, 0);
+        setTime(timeDate);
+      }
     }
   }, [id, expenses]);
 
@@ -58,8 +80,9 @@ export default function EditExpenseScreen() {
   };
 
   const handleCategorySelect = (cat: Category) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    triggerHaptic();
     setCategory(cat);
+    setShowCategorySheet(false);
   };
 
   const handleSubmit = async () => {
@@ -79,8 +102,11 @@ export default function EditExpenseScreen() {
         category,
         memo: memo.trim() || undefined,
         date: formatDate(date),
+        time: formatTime(time),
       });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (hapticEnabled) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       router.back();
     } catch (error) {
       Alert.alert('오류', '지출 수정에 실패했습니다');
@@ -98,6 +124,9 @@ export default function EditExpenseScreen() {
         onPress: async () => {
           if (id) {
             await deleteExpense(id);
+            if (hapticEnabled) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            }
             router.back();
           }
         },
@@ -105,10 +134,15 @@ export default function EditExpenseScreen() {
     ]);
   };
 
+  // 카테고리 정보
+  const getCategoryInfo = () => {
+    return CATEGORIES.find(c => c.id === category) || CATEGORIES[0];
+  };
+
   if (!expense) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <Text style={[styles.errorText, { color: colors.textSecondary }]}>
+        <Text style={[typography.bodyMedium, { color: colors.textSecondary, textAlign: 'center', marginTop: 40 }]}>
           지출을 찾을 수 없습니다
         </Text>
       </View>
@@ -121,44 +155,165 @@ export default function EditExpenseScreen() {
         options={{
           title: '지출 수정',
           headerRight: () => (
-            <TouchableOpacity onPress={handleDelete}>
+            <TouchableOpacity onPress={handleDelete} style={{ padding: spacing.xs }}>
               <MaterialIcons name="delete" size={24} color={colors.error} />
             </TouchableOpacity>
           ),
         }}
       />
-      <ScrollView
-        style={[styles.container, { backgroundColor: colors.background }]}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        {/* 금액 입력 */}
-        <Card style={styles.amountCard}>
-          <View style={styles.amountInputRow}>
-            <Text style={[styles.currencySymbol, { color: colors.text }]}>
-              {currencySymbol}
-            </Text>
-            <TextInput
-              style={[styles.amountInput, { color: colors.text }]}
-              value={amount}
-              onChangeText={handleAmountChange}
-              placeholder="0"
-              placeholderTextColor={colors.textSecondary}
-              keyboardType="decimal-pad"
-            />
-          </View>
-          <View style={[styles.krwRow, { borderTopColor: colors.border }]}>
-            <Text style={[styles.krwLabel, { color: colors.textSecondary }]}>
-              원화 환산
-            </Text>
-            <Text style={[styles.krwValue, { color: colors.primary }]}>
-              {formatKRW(amountKRW)}
-            </Text>
-          </View>
-        </Card>
+        <ScrollView
+          style={{ backgroundColor: colors.background }}
+          contentContainerStyle={[styles.content, { padding: spacing.base }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* 금액 입력 */}
+          <Card style={styles.amountCard}>
+            <View style={styles.amountInputRow}>
+              <Text style={[styles.currencySymbol, { color: colors.textSecondary }]}>
+                {currencySymbol}
+              </Text>
+              <TextInput
+                style={[styles.amountInput, { color: colors.text }]}
+                value={amount}
+                onChangeText={handleAmountChange}
+                placeholder="0"
+                placeholderTextColor={colors.textTertiary}
+                keyboardType="decimal-pad"
+              />
+            </View>
+            <View style={[styles.krwRow, { borderTopColor: colors.border }]}>
+              <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>
+                원화 환산
+              </Text>
+              <Text style={[typography.titleSmall, { color: colors.primary }]}>
+                {formatKRW(amountKRW)}
+              </Text>
+            </View>
+          </Card>
 
-        {/* 카테고리 선택 */}
-        <Text style={[styles.sectionLabel, { color: colors.text }]}>카테고리</Text>
+          {/* 카테고리 선택 */}
+          <View style={[styles.row, { marginTop: spacing.md }]}>
+            <TouchableOpacity
+              style={[
+                styles.selector,
+                { backgroundColor: colors.surface, borderRadius: borderRadius.md, flex: 1 },
+              ]}
+              onPress={() => setShowCategorySheet(true)}
+            >
+              <CategoryIcon category={category} size="small" />
+              <Text style={[typography.labelMedium, { color: colors.text, marginLeft: spacing.sm }]}>
+                {getCategoryInfo().label}
+              </Text>
+              <MaterialIcons name="expand-more" size={20} color={colors.textSecondary} style={styles.selectorIcon} />
+            </TouchableOpacity>
+          </View>
+
+          {/* 날짜 & 시간 */}
+          <View style={[styles.row, { marginTop: spacing.md }]}>
+            <TouchableOpacity
+              style={[
+                styles.selector,
+                { backgroundColor: colors.surface, borderRadius: borderRadius.md },
+              ]}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <MaterialIcons name="calendar-today" size={20} color={colors.textSecondary} />
+              <Text style={[typography.labelMedium, { color: colors.text, marginLeft: spacing.sm }]}>
+                {formatFullDate(date)}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.selector,
+                { backgroundColor: colors.surface, borderRadius: borderRadius.md },
+              ]}
+              onPress={() => setShowTimePicker(true)}
+            >
+              <MaterialIcons name="access-time" size={20} color={colors.textSecondary} />
+              <Text style={[typography.labelMedium, { color: colors.text, marginLeft: spacing.sm }]}>
+                {formatTime(time)}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 메모 */}
+          <Text style={[typography.labelMedium, { color: colors.text, marginTop: spacing.lg, marginBottom: spacing.sm }]}>
+            메모 (선택)
+          </Text>
+          <TextInput
+            style={[
+              styles.memoInput,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+                color: colors.text,
+                borderRadius: borderRadius.md,
+              },
+            ]}
+            value={memo}
+            onChangeText={setMemo}
+            placeholder="어디서 뭘 샀는지..."
+            placeholderTextColor={colors.textTertiary}
+            multiline
+          />
+
+          {/* 저장 버튼 */}
+          <Button
+            title="수정하기"
+            onPress={handleSubmit}
+            loading={loading}
+            disabled={!amount || parseFloat(amount) <= 0}
+            fullWidth
+            style={{ marginTop: spacing.xl }}
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Date Picker */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={date}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedDate) => {
+            if (Platform.OS === 'android') setShowDatePicker(false);
+            if (selectedDate) {
+              setDate(selectedDate);
+              if (Platform.OS === 'ios') setShowDatePicker(false);
+            }
+          }}
+        />
+      )}
+
+      {/* Time Picker */}
+      {showTimePicker && (
+        <DateTimePicker
+          value={time}
+          mode="time"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedTime) => {
+            if (Platform.OS === 'android') setShowTimePicker(false);
+            if (selectedTime) {
+              setTime(selectedTime);
+              if (Platform.OS === 'ios') setShowTimePicker(false);
+            }
+          }}
+        />
+      )}
+
+      {/* 카테고리 선택 모달 */}
+      <BottomSheet
+        visible={showCategorySheet}
+        onClose={() => setShowCategorySheet(false)}
+        title="카테고리"
+      >
         <View style={styles.categoryGrid}>
           {CATEGORIES.map((cat) => (
             <TouchableOpacity
@@ -166,16 +321,21 @@ export default function EditExpenseScreen() {
               style={[
                 styles.categoryItem,
                 {
-                  backgroundColor: category === cat.id ? cat.color : colors.surface,
-                  borderColor: category === cat.id ? cat.color : colors.border,
+                  backgroundColor: category === cat.id ? colors.primaryLight : colors.surface,
+                  borderColor: category === cat.id ? colors.primary : colors.border,
+                  borderRadius: borderRadius.md,
                 },
               ]}
               onPress={() => handleCategorySelect(cat.id)}
             >
+              <CategoryIcon category={cat.id} size="medium" />
               <Text
                 style={[
-                  styles.categoryLabel,
-                  { color: category === cat.id ? '#FFFFFF' : colors.text },
+                  typography.labelSmall,
+                  {
+                    color: category === cat.id ? colors.primary : colors.text,
+                    marginTop: spacing.xs,
+                  },
                 ]}
               >
                 {cat.label}
@@ -183,59 +343,7 @@ export default function EditExpenseScreen() {
             </TouchableOpacity>
           ))}
         </View>
-
-        {/* 날짜 선택 */}
-        <Text style={[styles.sectionLabel, { color: colors.text }]}>날짜</Text>
-        <TouchableOpacity
-          style={[styles.dateButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          onPress={() => setShowDatePicker(true)}
-        >
-          <Text style={[styles.dateText, { color: colors.text }]}>
-            {formatFullDate(date)}
-          </Text>
-        </TouchableOpacity>
-
-        {showDatePicker && (
-          <DateTimePicker
-            value={date}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={(event, selectedDate) => {
-              if (Platform.OS === 'android') {
-                setShowDatePicker(false);
-              }
-              if (selectedDate) {
-                setDate(selectedDate);
-                setShowDatePicker(false);
-              }
-            }}
-          />
-        )}
-
-        {/* 메모 */}
-        <Text style={[styles.sectionLabel, { color: colors.text }]}>메모 (선택)</Text>
-        <TextInput
-          style={[
-            styles.memoInput,
-            { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text },
-          ]}
-          value={memo}
-          onChangeText={setMemo}
-          placeholder="어디서 뭘 샀는지..."
-          placeholderTextColor={colors.textSecondary}
-          multiline
-        />
-
-        {/* 저장 버튼 */}
-        <Button
-          title="수정하기"
-          onPress={handleSubmit}
-          loading={loading}
-          disabled={!amount || parseFloat(amount) <= 0}
-          size="large"
-          style={styles.submitButton}
-        />
-      </ScrollView>
+      </BottomSheet>
     </>
   );
 }
@@ -245,16 +353,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 16,
     paddingBottom: 40,
   },
-  errorText: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 40,
-  },
   amountCard: {
-    marginBottom: 24,
     padding: 0,
     overflow: 'hidden',
   },
@@ -264,15 +365,18 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   currencySymbol: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '300',
     marginRight: 8,
   },
   amountInput: {
     flex: 1,
-    fontSize: 48,
+    fontSize: 44,
     fontWeight: '700',
     padding: 0,
+    height: 56,
+    lineHeight: 52,
+    textAlignVertical: 'center',
   },
   krwRow: {
     flexDirection: 'row',
@@ -281,56 +385,38 @@ const styles = StyleSheet.create({
     padding: 16,
     borderTopWidth: 1,
   },
-  krwLabel: {
-    fontSize: 14,
-  },
-  krwValue: {
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  sectionLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  categoryGrid: {
+  row: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 20,
+    gap: 12,
   },
-  categoryItem: {
-    width: '31%',
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
+  selector: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
+    padding: 14,
   },
-  categoryLabel: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  dateButton: {
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  dateText: {
-    fontSize: 16,
+  selectorIcon: {
+    marginLeft: 'auto',
   },
   memoInput: {
     minHeight: 80,
-    borderRadius: 12,
     borderWidth: 1,
     padding: 12,
     fontSize: 16,
     textAlignVertical: 'top',
-    marginBottom: 24,
   },
-  submitButton: {
-    marginTop: 8,
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  categoryItem: {
+    width: '30%',
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    padding: 8,
   },
 });

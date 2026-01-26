@@ -9,6 +9,7 @@ interface ProgressBarProps {
   variant?: 'default' | 'wallet' | 'budget';
   showLabel?: boolean;
   height?: number;
+  color?: string;  // Custom color override
   style?: ViewStyle;
 }
 
@@ -17,6 +18,7 @@ export function ProgressBar({
   variant = 'default',
   showLabel = false,
   height = 8,
+  color,
   style,
 }: ProgressBarProps) {
   const { colors, borderRadius } = useTheme();
@@ -25,6 +27,9 @@ export function ProgressBar({
   const percentage = Math.round(clampedProgress * 100);
 
   const getFillColor = () => {
+    // Custom color override
+    if (color) return color;
+
     switch (variant) {
       case 'wallet':
         if (clampedProgress <= 0.1) return colors.error;

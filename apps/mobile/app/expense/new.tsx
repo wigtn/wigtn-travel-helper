@@ -1,4 +1,5 @@
-// Travel Helper - New Expense Screen
+// Travel Helper v1.1 - New Expense Screen
+// PRD v1.1: 지갑/결제수단 기능 제거, 단순화된 지출 기록
 
 import { useState, useEffect } from 'react';
 import {
@@ -19,20 +20,20 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../../lib/theme';
 import { useTripStore } from '../../lib/stores/tripStore';
 import { useExpenseStore } from '../../lib/stores/expenseStore';
-import { useWalletStore } from '../../lib/stores/walletStore';
 import { useExchangeRateStore } from '../../lib/stores/exchangeRateStore';
+import { useSettingsStore } from '../../lib/stores/settingsStore';
 import { Button, Card, BottomSheet, CategoryIcon } from '../../components/ui';
-import { CATEGORIES, Category, PaymentMethod, PAYMENT_METHODS } from '../../lib/utils/constants';
-import { formatKRW, getCurrencySymbol, getCurrencyFlag, formatCurrency } from '../../lib/utils/currency';
+import { CATEGORIES, Category } from '../../lib/utils/constants';
+import { formatKRW, getCurrencySymbol, getCurrencyFlag } from '../../lib/utils/currency';
 import { formatDate, formatFullDate, formatTime } from '../../lib/utils/date';
-import { Trip, Destination, Wallet } from '../../lib/types';
+import { Trip, Destination } from '../../lib/types';
 
 export default function NewExpenseScreen() {
   const { colors, spacing, typography, borderRadius, shadows } = useTheme();
   const { activeTrip, activeTrips, destinations, setActiveTrip, loadDestinations } = useTripStore();
   const createExpense = useExpenseStore((state) => state.createExpense);
-  const { wallets, walletBalances, loadWallets } = useWalletStore();
   const { getRate, convert } = useExchangeRateStore();
+  const { hapticEnabled } = useSettingsStore();
 
   // 여행 & 방문지 선택
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
@@ -46,17 +47,20 @@ export default function NewExpenseScreen() {
   const [memo, setMemo] = useState('');
   const [date, setDate] = useState(new Date());
   const [time, setTime] = useState(new Date());
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
-  const [selectedWallet, setSelectedWallet] = useState<Wallet | null>(null);
 
   // Picker 상태
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [showPaymentSheet, setShowPaymentSheet] = useState(false);
-  const [showWalletSheet, setShowWalletSheet] = useState(false);
   const [showCategorySheet, setShowCategorySheet] = useState(false);
 
   const [loading, setLoading] = useState(false);
+
+  // 햅틱 피드백 헬퍼
+  const triggerHaptic = (style: Haptics.ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle.Light) => {
+    if (hapticEnabled) {
+      Haptics.impactAsync(style);
+    }
+  };
 
   // 초기화
   useEffect(() => {
@@ -69,15 +73,14 @@ export default function NewExpenseScreen() {
     }
   }, [activeTrips, activeTrip]);
 
-  // 여행 선택 시 방문지와 지갑 로드
+  // 여행 선택 시 방문지 로드
   const handleTripSelect = async (trip: Trip) => {
     setSelectedTrip(trip);
     setActiveTrip(trip);
     setShowTripSelector(false);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    triggerHaptic();
 
     await loadDestinations(trip.id);
-    await loadWallets(trip.id);
   };
 
   // destinations가 로드되면 첫 번째 방문지 선택
@@ -94,63 +97,21 @@ export default function NewExpenseScreen() {
   const exchangeRate = getRate(currency);
   const amountKRW = amount ? convert(parseFloat(amount), currency) : 0;
 
-  // 현재 통화에 맞는 지갑 필터링
-  const availableWallets = wallets.filter(w => w.currency === currency);
-
   const handleAmountChange = (text: string) => {
     const cleaned = text.replace(/[^0-9.]/g, '');
     setAmount(cleaned);
   };
 
   const handleCategorySelect = (cat: Category) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    triggerHaptic();
     setCategory(cat);
     setShowCategorySheet(false);
-  };
-
-  const handlePaymentMethodSelect = (method: PaymentMethod) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setPaymentMethod(method);
-    setShowPaymentSheet(false);
-
-    // 지갑 결제면 지갑 선택 시트 열기
-    if (method === 'wallet') {
-      if (availableWallets.length === 0) {
-        Alert.alert('알림', `${currency} 지갑이 없습니다. 먼저 지갑을 추가해주세요.`);
-        setPaymentMethod('card');
-      } else if (availableWallets.length === 1) {
-        setSelectedWallet(availableWallets[0]);
-      } else {
-        setShowWalletSheet(true);
-      }
-    } else {
-      setSelectedWallet(null);
-    }
-  };
-
-  const handleWalletSelect = (wallet: Wallet) => {
-    setSelectedWallet(wallet);
-    setShowWalletSheet(false);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const handleDestinationSelect = (dest: Destination) => {
     setSelectedDestination(dest);
     setShowDestinationSelector(false);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    // 통화가 바뀌면 지갑 선택 초기화
-    if (dest.currency !== currency) {
-      setSelectedWallet(null);
-      if (paymentMethod === 'wallet') {
-        const newWallets = wallets.filter(w => w.currency === dest.currency);
-        if (newWallets.length === 0) {
-          setPaymentMethod('card');
-        } else if (newWallets.length === 1) {
-          setSelectedWallet(newWallets[0]);
-        }
-      }
-    }
+    triggerHaptic();
   };
 
   const handleSubmit = async () => {
@@ -164,10 +125,6 @@ export default function NewExpenseScreen() {
     }
     if (!amount || parseFloat(amount) <= 0) {
       Alert.alert('알림', '금액을 입력해주세요');
-      return;
-    }
-    if (paymentMethod === 'wallet' && !selectedWallet) {
-      Alert.alert('알림', '지갑을 선택해주세요');
       return;
     }
 
@@ -184,10 +141,10 @@ export default function NewExpenseScreen() {
         memo: memo.trim() || undefined,
         date: formatDate(date),
         time: formatTime(time),
-        paymentMethod,
-        walletId: paymentMethod === 'wallet' ? selectedWallet?.id : undefined,
       });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (hapticEnabled) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
       router.back();
     } catch (error) {
       console.error(error);
@@ -195,12 +152,6 @@ export default function NewExpenseScreen() {
     } finally {
       setLoading(false);
     }
-  };
-
-  // 결제 수단 정보
-  const getPaymentMethodInfo = () => {
-    const method = PAYMENT_METHODS.find(m => m.id === paymentMethod);
-    return method || PAYMENT_METHODS[0];
   };
 
   // 카테고리 정보
@@ -297,40 +248,18 @@ export default function NewExpenseScreen() {
             </View>
           </Card>
 
-          {/* 카테고리 & 결제수단 */}
+          {/* 카테고리 선택 */}
           <View style={[styles.row, { marginTop: spacing.md }]}>
-            {/* 카테고리 */}
             <TouchableOpacity
               style={[
                 styles.selector,
-                { backgroundColor: colors.surface, borderRadius: borderRadius.md },
+                { backgroundColor: colors.surface, borderRadius: borderRadius.md, flex: 1 },
               ]}
               onPress={() => setShowCategorySheet(true)}
             >
               <CategoryIcon category={category} size="small" />
               <Text style={[typography.labelMedium, { color: colors.text, marginLeft: spacing.sm }]}>
                 {getCategoryInfo().label}
-              </Text>
-              <MaterialIcons name="expand-more" size={20} color={colors.textSecondary} style={styles.selectorIcon} />
-            </TouchableOpacity>
-
-            {/* 결제 수단 */}
-            <TouchableOpacity
-              style={[
-                styles.selector,
-                { backgroundColor: colors.surface, borderRadius: borderRadius.md },
-              ]}
-              onPress={() => setShowPaymentSheet(true)}
-            >
-              <MaterialIcons
-                name={getPaymentMethodInfo().icon as keyof typeof MaterialIcons.glyphMap}
-                size={20}
-                color={colors.text}
-              />
-              <Text style={[typography.labelMedium, { color: colors.text, marginLeft: spacing.sm }]}>
-                {paymentMethod === 'wallet' && selectedWallet
-                  ? selectedWallet.name || `${currency} 지갑`
-                  : getPaymentMethodInfo().label}
               </Text>
               <MaterialIcons name="expand-more" size={20} color={colors.textSecondary} style={styles.selectorIcon} />
             </TouchableOpacity>
@@ -529,88 +458,6 @@ export default function NewExpenseScreen() {
           ))}
         </View>
       </BottomSheet>
-
-      {/* 결제 수단 선택 모달 */}
-      <BottomSheet
-        visible={showPaymentSheet}
-        onClose={() => setShowPaymentSheet(false)}
-        title="결제 수단"
-      >
-        {PAYMENT_METHODS.map((method) => (
-          <TouchableOpacity
-            key={method.id}
-            style={[
-              styles.optionItem,
-              {
-                backgroundColor: paymentMethod === method.id ? colors.primaryLight : colors.surface,
-                borderColor: paymentMethod === method.id ? colors.primary : colors.border,
-                borderRadius: borderRadius.md,
-              },
-            ]}
-            onPress={() => handlePaymentMethodSelect(method.id)}
-          >
-            <View style={styles.optionItemRow}>
-              <MaterialIcons
-                name={method.icon as keyof typeof MaterialIcons.glyphMap}
-                size={24}
-                color={paymentMethod === method.id ? colors.primary : colors.text}
-              />
-              <View style={{ marginLeft: spacing.sm }}>
-                <Text
-                  style={[
-                    typography.titleSmall,
-                    { color: paymentMethod === method.id ? colors.primary : colors.text },
-                  ]}
-                >
-                  {method.label}
-                </Text>
-                <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                  {method.description}
-                </Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </BottomSheet>
-
-      {/* 지갑 선택 모달 */}
-      <BottomSheet
-        visible={showWalletSheet}
-        onClose={() => setShowWalletSheet(false)}
-        title="지갑 선택"
-      >
-        {availableWallets.map((wallet) => {
-          const balance = walletBalances.find(wb => wb.wallet.id === wallet.id);
-          return (
-            <TouchableOpacity
-              key={wallet.id}
-              style={[
-                styles.optionItem,
-                {
-                  backgroundColor: selectedWallet?.id === wallet.id ? colors.primaryLight : colors.surface,
-                  borderColor: selectedWallet?.id === wallet.id ? colors.primary : colors.border,
-                  borderRadius: borderRadius.md,
-                },
-              ]}
-              onPress={() => handleWalletSelect(wallet)}
-            >
-              <View style={styles.walletOption}>
-                <View>
-                  <Text style={[typography.titleSmall, { color: colors.text }]}>
-                    {wallet.name || `${wallet.currency} 지갑`}
-                  </Text>
-                  <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                    잔액: {formatCurrency(balance?.balance || 0, wallet.currency)}
-                  </Text>
-                </View>
-                {selectedWallet?.id === wallet.id && (
-                  <MaterialIcons name="check" size={24} color={colors.primary} />
-                )}
-              </View>
-            </TouchableOpacity>
-          );
-        })}
-      </BottomSheet>
     </>
   );
 }
@@ -716,10 +563,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     padding: 8,
-  },
-  walletOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
   },
 });

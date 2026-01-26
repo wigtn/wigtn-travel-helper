@@ -1,4 +1,5 @@
-// Travel Helper v2.0 - Constants
+// Travel Helper v1.1 - Constants (Simplified)
+// PRD v1.1 기준 - 지갑/환전 기능 제외
 
 // 카테고리 정의
 export type Category = 'food' | 'transport' | 'shopping' | 'lodging' | 'activity' | 'etc';
@@ -12,16 +13,7 @@ export const CATEGORIES: { id: Category; label: string; icon: string; lightColor
   { id: 'etc', label: '기타', icon: 'more-horiz', lightColor: '#6B7684', darkColor: '#8B949E' },
 ];
 
-// 결제 방식
-export type PaymentMethod = 'wallet' | 'card' | 'cash';
-
-export const PAYMENT_METHODS: { id: PaymentMethod; label: string; icon: string; description: string }[] = [
-  { id: 'wallet', label: '지갑', icon: 'account-balance-wallet', description: '환전한 현금 지갑에서 차감' },
-  { id: 'card', label: '카드', icon: 'credit-card', description: '신용/체크카드 결제' },
-  { id: 'cash', label: '현금', icon: 'payments', description: '현금 직접 결제 (지갑 미반영)' },
-];
-
-// 지원 통화 (확장)
+// 지원 통화
 export const CURRENCIES: { code: string; symbol: string; name: string; flag: string; country: string }[] = [
   { code: 'JPY', symbol: '¥', name: '일본 엔', flag: '🇯🇵', country: '일본' },
   { code: 'USD', symbol: '$', name: '미국 달러', flag: '🇺🇸', country: '미국' },
@@ -36,10 +28,8 @@ export const CURRENCIES: { code: string; symbol: string; name: string; flag: str
   { code: 'AUD', symbol: 'A$', name: '호주 달러', flag: '🇦🇺', country: '호주' },
   { code: 'CAD', symbol: 'C$', name: '캐나다 달러', flag: '🇨🇦', country: '캐나다' },
   { code: 'CHF', symbol: 'CHF', name: '스위스 프랑', flag: '🇨🇭', country: '스위스' },
-  { code: 'CZK', symbol: 'Kč', name: '체코 코루나', flag: '🇨🇿', country: '체코' },
   { code: 'HKD', symbol: 'HK$', name: '홍콩 달러', flag: '🇭🇰', country: '홍콩' },
   { code: 'MYR', symbol: 'RM', name: '말레이시아 링깃', flag: '🇲🇾', country: '말레이시아' },
-  { code: 'NZD', symbol: 'NZ$', name: '뉴질랜드 달러', flag: '🇳🇿', country: '뉴질랜드' },
   { code: 'IDR', symbol: 'Rp', name: '인도네시아 루피아', flag: '🇮🇩', country: '인도네시아' },
 ];
 
@@ -53,6 +43,12 @@ export const POPULAR_COUNTRIES: { country: string; flag: string; currency: strin
   { country: '이탈리아', flag: '🇮🇹', currency: 'EUR' },
   { country: '스페인', flag: '🇪🇸', currency: 'EUR' },
   { country: '태국', flag: '🇹🇭', currency: 'THB' },
+  { country: '베트남', flag: '🇻🇳', currency: 'VND' },
+  { country: '대만', flag: '🇹🇼', currency: 'TWD' },
+  { country: '중국', flag: '🇨🇳', currency: 'CNY' },
+  { country: '싱가포르', flag: '🇸🇬', currency: 'SGD' },
+  { country: '호주', flag: '🇦🇺', currency: 'AUD' },
+  { country: '홍콩', flag: '🇭🇰', currency: 'HKD' },
 ];
 
 // 통화 코드로 정보 찾기
@@ -64,6 +60,3 @@ export function getCurrencyInfo(code: string) {
 export function getCategoryInfo(id: Category) {
   return CATEGORIES.find(c => c.id === id);
 }
-
-// 지갑 거래 타입
-export type WalletTransactionType = 'deposit' | 'withdraw' | 'adjust';
