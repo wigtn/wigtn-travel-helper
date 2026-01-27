@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import { generateId } from '../utils/uuid';
+import { getCountryCode } from '../utils/constants';
 import { Trip, Destination, CurrentLocation } from '../types';
 import * as queries from '../db/queries';
 import { tripApi, CreateTripDto, TripResponse } from '../api/trip';
@@ -39,13 +40,20 @@ interface TripState {
   getCurrentLocation: (tripId: string) => Promise<CurrentLocation>;
 }
 
+// Helper: Convert date to YYYY-MM-DD format
+function toDateString(date: string | Date): string {
+  if (!date) return '';
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return d.toISOString().split('T')[0];
+}
+
 // Helper: Convert API response to local Trip type
 function toTrip(response: TripResponse): Trip {
   return {
     id: response.id,
     name: response.name,
-    startDate: response.startDate,
-    endDate: response.endDate,
+    startDate: toDateString(response.startDate),
+    endDate: toDateString(response.endDate),
     budget: response.budget,
     createdAt: response.createdAt,
   };
@@ -60,8 +68,8 @@ function toDestination(dest: Destination, tripId: string): Destination {
     countryName: dest.countryName,
     city: dest.city,
     currency: dest.currency,
-    startDate: dest.startDate,
-    endDate: dest.endDate,
+    startDate: dest.startDate ? toDateString(dest.startDate) : undefined,
+    endDate: dest.endDate ? toDateString(dest.endDate) : undefined,
     orderIndex: dest.orderIndex,
     createdAt: dest.createdAt,
   };
@@ -164,7 +172,7 @@ export const useTripStore = create<TripState>((set, get) => ({
           budget: tripData.budget,
           destinations: destinationsData.map((d, i) => ({
             country: d.country,
-            countryCode: d.countryName,
+            countryCode: getCountryCode(d.country),
             city: d.city,
             currency: d.currency,
             startDate: d.startDate,
@@ -329,7 +337,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       try {
         const { data } = await tripApi.addDestination(destData.tripId, {
           country: destData.country,
-          countryCode: destData.countryName,
+          countryCode: getCountryCode(destData.country),
           city: destData.city,
           currency: destData.currency,
           startDate: destData.startDate,

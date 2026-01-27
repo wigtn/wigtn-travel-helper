@@ -34,26 +34,32 @@ export const CURRENCIES: { code: string; symbol: string; name: string; flag: str
 ];
 
 // 자주 가는 국가 (방문지 추가 시)
-export const POPULAR_COUNTRIES: { country: string; flag: string; currency: string }[] = [
-  { country: '일본', flag: '🇯🇵', currency: 'JPY' },
-  { country: '미국', flag: '🇺🇸', currency: 'USD' },
-  { country: '프랑스', flag: '🇫🇷', currency: 'EUR' },
-  { country: '영국', flag: '🇬🇧', currency: 'GBP' },
-  { country: '독일', flag: '🇩🇪', currency: 'EUR' },
-  { country: '이탈리아', flag: '🇮🇹', currency: 'EUR' },
-  { country: '스페인', flag: '🇪🇸', currency: 'EUR' },
-  { country: '태국', flag: '🇹🇭', currency: 'THB' },
-  { country: '베트남', flag: '🇻🇳', currency: 'VND' },
-  { country: '대만', flag: '🇹🇼', currency: 'TWD' },
-  { country: '중국', flag: '🇨🇳', currency: 'CNY' },
-  { country: '싱가포르', flag: '🇸🇬', currency: 'SGD' },
-  { country: '호주', flag: '🇦🇺', currency: 'AUD' },
-  { country: '홍콩', flag: '🇭🇰', currency: 'HKD' },
+export const POPULAR_COUNTRIES: { code: string; country: string; flag: string; currency: string }[] = [
+  { code: 'JP', country: '일본', flag: '🇯🇵', currency: 'JPY' },
+  { code: 'US', country: '미국', flag: '🇺🇸', currency: 'USD' },
+  { code: 'FR', country: '프랑스', flag: '🇫🇷', currency: 'EUR' },
+  { code: 'GB', country: '영국', flag: '🇬🇧', currency: 'GBP' },
+  { code: 'DE', country: '독일', flag: '🇩🇪', currency: 'EUR' },
+  { code: 'IT', country: '이탈리아', flag: '🇮🇹', currency: 'EUR' },
+  { code: 'ES', country: '스페인', flag: '🇪🇸', currency: 'EUR' },
+  { code: 'TH', country: '태국', flag: '🇹🇭', currency: 'THB' },
+  { code: 'VN', country: '베트남', flag: '🇻🇳', currency: 'VND' },
+  { code: 'TW', country: '대만', flag: '🇹🇼', currency: 'TWD' },
+  { code: 'CN', country: '중국', flag: '🇨🇳', currency: 'CNY' },
+  { code: 'SG', country: '싱가포르', flag: '🇸🇬', currency: 'SGD' },
+  { code: 'AU', country: '호주', flag: '🇦🇺', currency: 'AUD' },
+  { code: 'HK', country: '홍콩', flag: '🇭🇰', currency: 'HKD' },
 ];
 
 // 통화 코드로 정보 찾기
 export function getCurrencyInfo(code: string) {
   return CURRENCIES.find(c => c.code === code);
+}
+
+// 국가명으로 ISO 코드 찾기
+export function getCountryCode(countryName: string): string {
+  const found = POPULAR_COUNTRIES.find(c => c.country === countryName);
+  return found?.code || 'XX';
 }
 
 // 카테고리 정보 찾기
