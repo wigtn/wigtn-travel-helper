@@ -16,7 +16,7 @@ export interface User extends BaseEntity {
 export interface RegisterDto {
   email: string;
   password: string;           // min: 8, max: 100
-  name: string;               // min: 1, max: 100
+  name?: string;              // max: 100, optional
 }
 
 /** 로그인 */

@@ -64,19 +64,24 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     try {
       const { data } = await expenseApi.getByTrip(tripId);
 
-      // Convert and save to local DB
-      const expenses: Expense[] = data.map((e) => ({
+      // Convert server response to local type
+      // Server uses expenseDate/expenseTime, client uses date/time
+      const expenses: Expense[] = data.map((e: any) => ({
         id: e.id,
         tripId: e.tripId,
         destinationId: e.destinationId,
-        amount: e.amount,
+        amount: Number(e.amount),
         currency: e.currency,
-        amountKRW: e.amountKRW,
-        exchangeRate: e.exchangeRate,
+        amountKRW: Number(e.amountKRW),
+        exchangeRate: Number(e.exchangeRate),
         category: e.category,
         memo: e.memo,
-        date: e.date,
-        time: e.time,
+        date: e.expenseDate
+          ? new Date(e.expenseDate).toISOString().split('T')[0]
+          : e.date,
+        time: e.expenseTime
+          ? new Date(e.expenseTime).toISOString().split('T')[1].slice(0, 5)
+          : e.time,
         createdAt: e.createdAt,
       }));
 

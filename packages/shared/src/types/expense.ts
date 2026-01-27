@@ -39,9 +39,11 @@ export interface Expense extends BaseEntity {
  * 지출 생성 요청
  * - exchangeRate, amountKRW: 클라이언트에서 환율 계산 후 전송
  *   (서버에서 환율 API로 검증 가능)
+ * - tripId: URL param으로 전달되므로 body에서는 선택적
+ * - paymentMethod: PRD v1.1에서 결제수단 기능 제거, 선택적 (기본값: 'card')
  */
 export interface CreateExpenseDto {
-  tripId: string;
+  tripId?: string;
   destinationId?: string;
 
   amount: number;
@@ -50,7 +52,7 @@ export interface CreateExpenseDto {
   amountKRW: number;
 
   category: Category;
-  paymentMethod: PaymentMethod;
+  paymentMethod?: PaymentMethod;
 
   description?: string;
   memo?: string;

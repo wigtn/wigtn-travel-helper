@@ -45,6 +45,14 @@ export function formatTime(date: Date | string): string {
   return `${period} ${displayHours}:${minutes.toString().padStart(2, '0')}`;
 }
 
+// API용 24시간 형식 (HH:mm)
+export function formatTimeForApi(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  const hours = d.getHours().toString().padStart(2, '0');
+  const minutes = d.getMinutes().toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
 export function parseTime(timeString: string): { hours: number; minutes: number } {
   const match = timeString.match(/(\d{1,2}):(\d{2})/);
   if (match) {

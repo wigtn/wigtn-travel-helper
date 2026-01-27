@@ -53,7 +53,6 @@ export class AIService {
           : 'etc';
 
         const expense = await this.expenseService.create(userId, dto.tripId, {
-          tripId: dto.tripId,
           amount: analysis.total,
           currency: analysis.currency,
           exchangeRate: 1, // TODO: Get actual exchange rate

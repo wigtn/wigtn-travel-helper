@@ -8,7 +8,6 @@ import {
   MaxLength,
 } from 'class-validator';
 import {
-  CreateExpenseDto as ICreateExpenseDto,
   Category,
   PaymentMethod,
   CATEGORIES,
@@ -16,10 +15,8 @@ import {
   VALIDATION,
 } from '@wigtn/shared';
 
-export class CreateExpenseDto implements ICreateExpenseDto {
-  @ApiProperty({ description: 'Trip ID' })
-  @IsString()
-  tripId: string;
+export class CreateExpenseDto {
+  // tripId is passed via URL param, not in body
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -47,9 +44,10 @@ export class CreateExpenseDto implements ICreateExpenseDto {
   @IsIn(CATEGORIES)
   category: Category;
 
-  @ApiProperty({ enum: PAYMENT_METHODS })
+  @ApiPropertyOptional({ enum: PAYMENT_METHODS, default: 'card' })
+  @IsOptional()
   @IsIn(PAYMENT_METHODS)
-  paymentMethod: PaymentMethod;
+  paymentMethod?: PaymentMethod;
 
   @ApiPropertyOptional({ example: '에펠탑 근처 카페' })
   @IsOptional()

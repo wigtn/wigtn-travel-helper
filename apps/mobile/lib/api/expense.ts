@@ -1,5 +1,4 @@
 import { apiClient } from './client';
-import { Expense } from '../types';
 import { Category } from '../utils/constants';
 
 // ============ Types ============
@@ -45,26 +44,46 @@ export interface ExpenseStats {
   dailyTotals: Record<string, number>;
 }
 
+// Server response type (different field names from client Expense type)
+export interface ExpenseResponse {
+  id: string;
+  tripId: string;
+  userId: string;
+  destinationId?: string;
+  amount: number | string;
+  currency: string;
+  exchangeRate: number | string;
+  amountKRW: number | string;
+  category: Category;
+  paymentMethod?: string;
+  description?: string;
+  memo?: string;
+  expenseDate: string; // ISO date string from server
+  expenseTime?: string; // ISO time string from server
+  createdAt: string;
+  updatedAt?: string;
+}
+
 // ============ API Functions ============
 
 export const expenseApi = {
   // Get expenses for a trip
   getByTrip: (tripId: string, filters?: ExpenseFilters) =>
-    apiClient.get<Expense[]>(`/trips/${tripId}/expenses`, {
+    apiClient.get<ExpenseResponse[]>(`/trips/${tripId}/expenses`, {
       params: filters,
     }),
 
   // Get single expense
   getById: (id: string) =>
-    apiClient.get<Expense>(`/expenses/${id}`),
+    apiClient.get<ExpenseResponse>(`/expenses/${id}`),
 
   // Create expense
   create: (tripId: string, dto: CreateExpenseDto) =>
-    apiClient.post<Expense>(`/trips/${tripId}/expenses`, dto),
+    apiClient.post<ExpenseResponse>(`/trips/${tripId}/expenses`, dto),
 
   // Update expense
   update: (id: string, dto: UpdateExpenseDto) =>
-    apiClient.patch<Expense>(`/expenses/${id}`, dto),
+    apiClient.patch<ExpenseResponse>(`/expenses/${id}`, dto),
 
   // Delete expense
   delete: (id: string) =>

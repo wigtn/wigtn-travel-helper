@@ -79,15 +79,35 @@ export class ExpenseService {
       throw new NotFoundException('Trip not found');
     }
 
+    // Parse expenseTime safely
+    let expenseTime: Date | null = null;
+    if (createExpenseDto.expenseTime && createExpenseDto.expenseTime.trim()) {
+      const timeStr = createExpenseDto.expenseTime.trim();
+      // Handle HH:mm or HH:mm:ss format
+      const timeWithSeconds = timeStr.includes(':') && timeStr.split(':').length === 2
+        ? `${timeStr}:00`
+        : timeStr;
+      const parsed = new Date(`1970-01-01T${timeWithSeconds}`);
+      if (!isNaN(parsed.getTime())) {
+        expenseTime = parsed;
+      }
+    }
+
     return this.prisma.expense.create({
       data: {
-        ...createExpenseDto,
         tripId,
         userId,
+        destinationId: createExpenseDto.destinationId || null,
+        amount: createExpenseDto.amount,
+        currency: createExpenseDto.currency,
+        exchangeRate: createExpenseDto.exchangeRate,
+        amountKRW: createExpenseDto.amountKRW,
+        category: createExpenseDto.category,
+        paymentMethod: createExpenseDto.paymentMethod || 'card',
+        description: createExpenseDto.description || null,
+        memo: createExpenseDto.memo || null,
         expenseDate: new Date(createExpenseDto.expenseDate),
-        expenseTime: createExpenseDto.expenseTime
-          ? new Date(`1970-01-01T${createExpenseDto.expenseTime}`)
-          : null,
+        expenseTime,
       },
       include: {
         destination: true,

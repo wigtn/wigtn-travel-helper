@@ -25,7 +25,7 @@ import { useSettingsStore } from '../../lib/stores/settingsStore';
 import { Button, Card, BottomSheet, CategoryIcon } from '../../components/ui';
 import { CATEGORIES, Category } from '../../lib/utils/constants';
 import { formatKRW, getCurrencySymbol, getCurrencyFlag } from '../../lib/utils/currency';
-import { formatDate, formatFullDate, formatTime } from '../../lib/utils/date';
+import { formatDate, formatFullDate, formatTime, formatTimeForApi } from '../../lib/utils/date';
 import { Trip, Destination } from '../../lib/types';
 
 export default function NewExpenseScreen() {
@@ -140,7 +140,7 @@ export default function NewExpenseScreen() {
         category,
         memo: memo.trim() || undefined,
         date: formatDate(date),
-        time: formatTime(time),
+        time: formatTimeForApi(time),
       });
       if (hapticEnabled) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

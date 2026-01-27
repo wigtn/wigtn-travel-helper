@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, MinLength, MaxLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEmail, IsString, IsOptional, MinLength, MaxLength } from 'class-validator';
 import { RegisterDto as IRegisterDto, VALIDATION } from '@wigtn/shared';
 
 export class RegisterDto implements IRegisterDto {
@@ -13,9 +13,9 @@ export class RegisterDto implements IRegisterDto {
   @MaxLength(VALIDATION.PASSWORD_MAX)
   password: string;
 
-  @ApiProperty({ example: '홍길동' })
+  @ApiPropertyOptional({ example: '홍길동' })
+  @IsOptional()
   @IsString()
-  @MinLength(1)
   @MaxLength(VALIDATION.USER_NAME_MAX)
-  name: string;
+  name?: string;
 }
