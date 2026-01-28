@@ -4,13 +4,17 @@
   "private": true,
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "dotenv -e .env.local -- turbo run dev",
+    "dev:api": "dotenv -e .env.local -- pnpm --filter @wigtn/api dev",
+    "dev:admin": "dotenv -e .env.local -- pnpm --filter @wigtn/admin dev",
+    "dev:mobile": "dotenv -e .env.local -- pnpm --filter @wigtn/mobile start",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "mobile": "pnpm --filter @wigtn/mobile",
     "api": "pnpm --filter @wigtn/api",
+    "admin": "pnpm --filter @wigtn/admin",
     "shared": "pnpm --filter @wigtn/shared",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules .turbo apps/*/.turbo",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
@@ -28,6 +32,7 @@
     "db:generate": "pnpm --filter @wigtn/api prisma:generate"
   },
   "devDependencies": {
+    "dotenv-cli": "^11.0.0",
     "prettier": "^3.4.2",
     "turbo": "^2.4.4",
     "typescript": "^5.9.2"
