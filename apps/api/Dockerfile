@@ -20,10 +20,13 @@ RUN pnpm install --frozen-lockfile
 COPY apps/api ./apps/api
 COPY packages/shared ./packages/shared
 
+# Build shared package first
+RUN pnpm --filter @wigtn/shared build
+
 # Generate Prisma client
 RUN cd apps/api && pnpm prisma generate
 
-# Build
+# Build API
 RUN pnpm --filter @wigtn/api build
 
 # Production stage

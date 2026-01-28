@@ -26,7 +26,10 @@ COPY packages/shared ./packages/shared
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 
-# Build the application
+# Build shared package first
+RUN pnpm --filter @wigtn/shared build
+
+# Build admin application
 RUN pnpm --filter @wigtn/admin build
 
 # Production stage
