@@ -41,17 +41,5 @@ services:
     ports:
       - "3000:3000"
 
-  admin:
-    build:
-      context: .
-      dockerfile: apps/admin/Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:3000}/api
-    restart: unless-stopped
-    environment:
-      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:3000}/api
-    ports:
-      - "3001:3001"
-
 volumes:
   postgres_data:
