@@ -45,11 +45,11 @@ fi
 
 # 이미지 빌드 및 컨테이너 재시작
 log "Docker 이미지 빌드 중..."
-docker-compose build
+docker-compose -f docker/docker-compose.yml build
 
 log "컨테이너 재시작 중..."
-docker-compose down
-docker-compose up -d
+docker-compose -f docker/docker-compose.yml down
+docker-compose -f docker/docker-compose.yml up -d
 
 # Health check
 log "API 상태 확인 중..."
@@ -67,7 +67,7 @@ done
 
 if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
     log "WARNING: API health check 실패. 로그를 확인하세요."
-    docker-compose logs --tail 50 api
+    docker-compose -f docker/docker-compose.yml logs --tail 50 api
 fi
 
 # 오래된 이미지 정리
@@ -77,6 +77,6 @@ docker image prune -af --filter "until=24h" 2>/dev/null || true
 log "=== 배포 완료 ==="
 log ""
 log "서비스 상태:"
-docker-compose ps
+docker-compose -f docker/docker-compose.yml ps
 log ""
-log "로그 확인: docker-compose logs -f api"
+log "로그 확인: docker-compose -f docker/docker-compose.yml logs -f api"

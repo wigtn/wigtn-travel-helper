@@ -40,9 +40,9 @@ fi
 echo ""
 echo "3. Docker Compose 설치..."
 if ! docker compose version &> /dev/null; then
-    curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
-        -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
+    curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose -f docker/docker-compose.yml-$(uname -s)-$(uname -m)" \
+        -o /usr/local/bin/docker-compose -f docker/docker-compose.yml
+    chmod +x /usr/local/bin/docker-compose -f docker/docker-compose.yml
     echo "   Docker Compose 설치 완료"
 else
     echo "   Docker Compose 이미 설치됨"
@@ -84,9 +84,9 @@ echo "   cp .env.example .env"
 echo "   nano .env"
 echo ""
 echo "4. 실행:"
-echo "   docker-compose up -d --build"
+echo "   docker-compose -f docker/docker-compose.yml up -d --build"
 echo ""
 echo "5. 상태 확인:"
-echo "   docker-compose ps"
-echo "   docker-compose logs -f api"
+echo "   docker-compose -f docker/docker-compose.yml ps"
+echo "   docker-compose -f docker/docker-compose.yml logs -f api"
 echo ""
