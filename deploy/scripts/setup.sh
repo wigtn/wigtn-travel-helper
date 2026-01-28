@@ -40,9 +40,9 @@ fi
 echo ""
 echo "3. Docker Compose 설치..."
 if ! docker compose version &> /dev/null; then
-    curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose -f docker/docker-compose.yml-$(uname -s)-$(uname -m)" \
-        -o /usr/local/bin/docker-compose -f docker/docker-compose.yml
-    chmod +x /usr/local/bin/docker-compose -f docker/docker-compose.yml
+    curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+        -o /usr/local/bin/docker-compose
+    chmod +x /usr/local/bin/docker-compose
     echo "   Docker Compose 설치 완료"
 else
     echo "   Docker Compose 이미 설치됨"
@@ -83,10 +83,17 @@ echo "3. 환경 설정:"
 echo "   cp .env.example .env"
 echo "   nano .env"
 echo ""
-echo "4. 실행:"
-echo "   docker-compose -f docker/docker-compose.yml up -d --build"
+echo "4. 실행 (환경별):"
+echo "   # 개발서버"
+echo "   docker compose -f docker/docker-compose.dev.yml up -d --build"
+echo "   # 프로덕션"
+echo "   docker compose -f docker/docker-compose.prod.yml up -d --build"
 echo ""
 echo "5. 상태 확인:"
-echo "   docker-compose -f docker/docker-compose.yml ps"
-echo "   docker-compose -f docker/docker-compose.yml logs -f api"
+echo "   docker compose -f docker/docker-compose.prod.yml ps"
+echo "   docker compose -f docker/docker-compose.prod.yml logs -f api"
+echo ""
+echo "6. 배포 스크립트 사용:"
+echo "   ./deploy/scripts/deploy.sh           # 프로덕션 배포"
+echo "   ./deploy/scripts/deploy.sh --dev     # 개발서버 배포"
 echo ""
