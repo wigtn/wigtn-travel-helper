@@ -36,8 +36,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Install prisma CLI globally for migrations
-RUN npm install -g prisma
+# Install prisma CLI globally for migrations (match project version)
+RUN npm install -g prisma@6
 
 # Copy built files
 COPY --from=builder /app/apps/api/dist ./dist
