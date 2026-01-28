@@ -36,6 +36,9 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# Install prisma CLI globally for migrations
+RUN npm install -g prisma
+
 # Copy built files
 COPY --from=builder /app/apps/api/dist ./dist
 COPY --from=builder /app/apps/api/node_modules ./node_modules
@@ -47,4 +50,4 @@ COPY --from=builder /app/node_modules/.pnpm ./node_modules/.pnpm
 EXPOSE 3000
 
 # Run migrations and start server
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main"]
+CMD ["sh", "-c", "prisma migrate deploy && node dist/main"]
