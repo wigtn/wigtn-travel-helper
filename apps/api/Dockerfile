@@ -29,22 +29,28 @@ RUN cd apps/api && pnpm prisma generate
 # Build API
 RUN pnpm --filter @wigtn/api build
 
-# Production stage
+# Production stage - use same image to keep pnpm structure
 FROM node:20-alpine AS runner
 
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Install prisma CLI globally for migrations (match project version)
-RUN npm install -g prisma@6
+# Install pnpm and prisma
+RUN npm install -g pnpm@9 prisma@6
 
-# Copy built files
-COPY --from=builder /app/apps/api/dist ./dist
-COPY --from=builder /app/apps/api/node_modules ./node_modules
-COPY --from=builder /app/apps/api/package.json ./
-COPY --from=builder /app/apps/api/prisma ./prisma
-COPY --from=builder /app/node_modules/.pnpm ./node_modules/.pnpm
+# Copy entire workspace (pnpm needs symlink structure)
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/pnpm-lock.yaml ./
+COPY --from=builder /app/pnpm-workspace.yaml ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/apps/api/dist ./apps/api/dist
+COPY --from=builder /app/apps/api/package.json ./apps/api/
+COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
+COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=builder /app/packages/shared ./packages/shared
+
+WORKDIR /app/apps/api
 
 # Expose port
 EXPOSE 3000
