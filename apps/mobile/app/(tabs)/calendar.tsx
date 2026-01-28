@@ -21,7 +21,7 @@ import { useSettingsStore } from '../../lib/stores/settingsStore';
 import { Card, CategoryIcon, EmptyState, CurrencyToggle, CalendarScreenSkeleton } from '../../components/ui';
 import { formatKRW, formatCurrency, getCurrencyFlag } from '../../lib/utils/currency';
 import { getDaysInMonth, getFirstDayOfMonth, formatDate, formatDisplayDate } from '../../lib/utils/date';
-import { CATEGORIES, getCurrencyInfo } from '../../lib/utils/constants';
+import { CATEGORIES, getCurrencyInfo, getCountryFlag } from '../../lib/utils/constants';
 import { Expense } from '../../lib/types';
 
 // Android에서 LayoutAnimation 활성화
@@ -197,7 +197,7 @@ export default function CalendarScreen() {
                           </Text>
                           {dest && (
                             <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                              {getCurrencyInfo(dest.currency)?.flag}
+                              {getCountryFlag(dest.country)}
                             </Text>
                           )}
                         </View>

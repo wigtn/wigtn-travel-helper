@@ -1,6 +1,7 @@
 // Travel Helper v2.0 - Settings Screen
-// PRD v1.1 기준 - 지갑 기능 제거, 로그아웃 추가
+// 아코디언 UI 적용: 계정, 테마, 여행 목록
 
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +11,9 @@ import {
   Alert,
   Switch,
   ActivityIndicator,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from 'react-native';
 import { router } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -24,13 +28,40 @@ import { Card, CurrencyToggle } from '../../components/ui';
 import { formatDisplayDate } from '../../lib/utils/date';
 import { ThemeMode } from '../../lib/types';
 
+// Android에서 LayoutAnimation 활성화
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 export default function SettingsScreen() {
-  const { colors, spacing, typography, isDark } = useTheme();
+  const { colors, spacing, typography, borderRadius, isDark } = useTheme();
   const { trips, activeTrip } = useTripStore();
   const { lastUpdated, loadRates } = useExchangeRateStore();
   const { hapticEnabled, setHapticEnabled, currencyDisplayMode, themeMode, setThemeMode } = useSettingsStore();
   const { user, logout, isLoading: isAuthLoading } = useAuthStore();
   const { status: syncStatus, pendingChanges } = useSyncStore();
+
+  // 아코디언 상태
+  const [expandedSections, setExpandedSections] = useState<{
+    account: boolean;
+    theme: boolean;
+    trips: boolean;
+  }>({
+    account: false,
+    theme: false,
+    trips: false,
+  });
+
+  const toggleSection = (section: 'account' | 'theme' | 'trips') => {
+    if (hapticEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
 
   const handleRefreshRates = async () => {
     if (hapticEnabled) {
@@ -45,18 +76,13 @@ export default function SettingsScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
 
-    // 동기화 대기 중인 변경사항이 있으면 경고
     if (pendingChanges > 0) {
       Alert.alert(
         '로그아웃',
         `동기화되지 않은 변경사항이 ${pendingChanges}개 있습니다.\n로그아웃하면 이 변경사항이 사라질 수 있습니다.\n\n정말 로그아웃하시겠습니까?`,
         [
           { text: '취소', style: 'cancel' },
-          {
-            text: '로그아웃',
-            style: 'destructive',
-            onPress: performLogout,
-          },
+          { text: '로그아웃', style: 'destructive', onPress: performLogout },
         ]
       );
     } else {
@@ -65,11 +91,7 @@ export default function SettingsScreen() {
         '정말 로그아웃하시겠습니까?',
         [
           { text: '취소', style: 'cancel' },
-          {
-            text: '로그아웃',
-            style: 'destructive',
-            onPress: performLogout,
-          },
+          { text: '로그아웃', style: 'destructive', onPress: performLogout },
         ]
       );
     }
@@ -97,47 +119,72 @@ export default function SettingsScreen() {
       contentContainerStyle={[styles.content, { padding: spacing.base }]}
       showsVerticalScrollIndicator={false}
     >
-      {/* 통화 표시 설정 */}
+      {/* 계정 정보 */}
       <Text style={[typography.labelMedium, { color: colors.text, marginBottom: spacing.sm }]}>
-        표시 설정
+        계정
       </Text>
       <Card style={styles.menuCard}>
-        <View style={styles.menuItem}>
+        <TouchableOpacity
+          style={styles.accordionHeader}
+          onPress={() => toggleSection('account')}
+          activeOpacity={0.7}
+        >
           <View style={styles.menuLeft}>
             <View style={[styles.iconContainer, { backgroundColor: colors.primaryLight }]}>
-              <MaterialIcons name="currency-exchange" size={20} color={colors.primary} />
+              <MaterialIcons name="person" size={20} color={colors.primary} />
             </View>
-            <View>
-              <Text style={[typography.bodyMedium, { color: colors.text }]}>통화 표시</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.bodyMedium, { color: colors.text }]}>
+                {user?.name || '사용자'}
+              </Text>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                {currencyDisplayMode === 'krw' ? '원화(KRW)' : '현지 통화'}로 표시 중
+                {user?.email}
               </Text>
             </View>
+            {syncStatus === 'syncing' && (
+              <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 8 }} />
+            )}
+            {syncStatus === 'offline' && (
+              <View style={[styles.statusBadge, { backgroundColor: colors.textTertiary, marginRight: 8 }]}>
+                <Text style={styles.statusBadgeText}>오프라인</Text>
+              </View>
+            )}
+            {pendingChanges > 0 && syncStatus !== 'syncing' && (
+              <View style={[styles.statusBadge, { backgroundColor: colors.warning, marginRight: 8 }]}>
+                <Text style={styles.statusBadgeText}>{pendingChanges}개 대기</Text>
+              </View>
+            )}
           </View>
-          <CurrencyToggle />
-        </View>
-
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-        <View style={styles.menuItem}>
-          <View style={styles.menuLeft}>
-            <View style={[styles.iconContainer, { backgroundColor: colors.secondaryLight }]}>
-              <MaterialIcons name="vibration" size={20} color={colors.secondary} />
-            </View>
-            <View>
-              <Text style={[typography.bodyMedium, { color: colors.text }]}>햅틱 피드백</Text>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                터치 시 진동 피드백
-              </Text>
-            </View>
-          </View>
-          <Switch
-            value={hapticEnabled}
-            onValueChange={setHapticEnabled}
-            trackColor={{ false: colors.border, true: colors.primaryLight }}
-            thumbColor={hapticEnabled ? colors.primary : colors.textTertiary}
+          <MaterialIcons
+            name={expandedSections.account ? 'expand-less' : 'expand-more'}
+            size={24}
+            color={colors.textSecondary}
           />
-        </View>
+        </TouchableOpacity>
+
+        {expandedSections.account && (
+          <View style={[styles.accordionContent, { borderTopColor: colors.border }]}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleLogout}
+              disabled={isAuthLoading}
+            >
+              <View style={styles.menuLeft}>
+                <View style={[styles.iconContainer, { backgroundColor: colors.error + '20' }]}>
+                  <MaterialIcons name="logout" size={20} color={colors.error} />
+                </View>
+                <Text style={[typography.bodyMedium, { color: colors.error }]}>
+                  로그아웃
+                </Text>
+              </View>
+              {isAuthLoading ? (
+                <ActivityIndicator size="small" color={colors.error} />
+              ) : (
+                <MaterialIcons name="chevron-right" size={24} color={colors.textTertiary} />
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
       </Card>
 
       {/* 여행 관리 */}
@@ -146,24 +193,43 @@ export default function SettingsScreen() {
       </Text>
       <Card style={styles.menuCard}>
         <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => router.push('/trip/new')}
+          style={styles.accordionHeader}
+          onPress={() => toggleSection('trips')}
+          activeOpacity={0.7}
         >
           <View style={styles.menuLeft}>
-            <View style={[styles.iconContainer, { backgroundColor: colors.primaryLight }]}>
-              <MaterialIcons name="add" size={20} color={colors.primary} />
+            <View style={[styles.iconContainer, { backgroundColor: colors.secondaryLight }]}>
+              <MaterialIcons name="flight" size={20} color={colors.secondary} />
             </View>
-            <Text style={[typography.bodyMedium, { color: colors.text }]}>새 여행 만들기</Text>
+            <View>
+              <Text style={[typography.bodyMedium, { color: colors.text }]}>여행 목록</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                {trips.length}개의 여행
+              </Text>
+            </View>
           </View>
-          <MaterialIcons name="chevron-right" size={24} color={colors.textTertiary} />
+          <MaterialIcons
+            name={expandedSections.trips ? 'expand-less' : 'expand-more'}
+            size={24}
+            color={colors.textSecondary}
+          />
         </TouchableOpacity>
 
-        {trips.length > 0 && (
-          <>
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-            <Text style={[typography.caption, { color: colors.textSecondary, marginLeft: spacing.base, marginTop: spacing.sm }]}>
-              여행 목록
-            </Text>
+        {expandedSections.trips && (
+          <View style={[styles.accordionContent, { borderTopColor: colors.border }]}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push('/trip/new')}
+            >
+              <View style={styles.menuLeft}>
+                <View style={[styles.iconContainer, { backgroundColor: colors.primaryLight }]}>
+                  <MaterialIcons name="add" size={20} color={colors.primary} />
+                </View>
+                <Text style={[typography.bodyMedium, { color: colors.text }]}>새 여행 만들기</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={24} color={colors.textTertiary} />
+            </TouchableOpacity>
+
             {trips.map((trip, index) => (
               <TouchableOpacity
                 key={trip.id}
@@ -188,7 +254,123 @@ export default function SettingsScreen() {
                 )}
               </TouchableOpacity>
             ))}
-          </>
+          </View>
+        )}
+      </Card>
+
+      {/* 표시 설정 */}
+      <Text style={[typography.labelMedium, { color: colors.text, marginTop: spacing.lg, marginBottom: spacing.sm }]}>
+        표시 설정
+      </Text>
+      <Card style={styles.menuCard}>
+        <View style={styles.menuItem}>
+          <View style={styles.menuLeft}>
+            <View style={[styles.iconContainer, { backgroundColor: colors.primaryLight }]}>
+              <MaterialIcons name="currency-exchange" size={20} color={colors.primary} />
+            </View>
+            <View>
+              <Text style={[typography.bodyMedium, { color: colors.text }]}>통화 표시</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                {currencyDisplayMode === 'krw' ? '원화(KRW)' : '현지 통화'}로 표시 중
+              </Text>
+            </View>
+          </View>
+          <CurrencyToggle />
+        </View>
+
+        {/* <View style={[styles.divider, { backgroundColor: colors.border }]} /> */}
+
+        {/* <View style={styles.menuItem}>
+          <View style={styles.menuLeft}>
+            <View style={[styles.iconContainer, { backgroundColor: colors.secondaryLight }]}>
+              <MaterialIcons name="vibration" size={20} color={colors.secondary} />
+            </View>
+            <View>
+              <Text style={[typography.bodyMedium, { color: colors.text }]}>햅틱 피드백</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                터치 시 진동 피드백
+              </Text>
+            </View>
+          </View>
+          <Switch
+            value={hapticEnabled}
+            onValueChange={setHapticEnabled}
+            trackColor={{ false: colors.border, true: colors.primaryLight }}
+            thumbColor={hapticEnabled ? colors.primary : colors.textTertiary}
+          />
+        </View> */}
+      </Card>
+
+      {/* 테마 */}
+      <Text style={[typography.labelMedium, { color: colors.text, marginTop: spacing.lg, marginBottom: spacing.sm }]}>
+        테마
+      </Text>
+      <Card style={styles.menuCard}>
+        <TouchableOpacity
+          style={styles.accordionHeader}
+          onPress={() => toggleSection('theme')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.menuLeft}>
+            <View style={[styles.iconContainer, { backgroundColor: colors.primaryLight }]}>
+              <MaterialIcons name="palette" size={20} color={colors.primary} />
+            </View>
+            <View>
+              <Text style={[typography.bodyMedium, { color: colors.text }]}>테마 모드</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                {themeMode === 'system' ? '시스템 설정' : themeMode === 'dark' ? '다크 모드' : '라이트 모드'}
+              </Text>
+            </View>
+          </View>
+          <MaterialIcons
+            name={expandedSections.theme ? 'expand-less' : 'expand-more'}
+            size={24}
+            color={colors.textSecondary}
+          />
+        </TouchableOpacity>
+
+        {expandedSections.theme && (
+          <View style={[styles.accordionContent, { borderTopColor: colors.border }]}>
+            <View style={styles.themeOptions}>
+              {([
+                { mode: 'system' as ThemeMode, label: '시스템', icon: 'phone-iphone' },
+                { mode: 'light' as ThemeMode, label: '라이트', icon: 'light-mode' },
+                { mode: 'dark' as ThemeMode, label: '다크', icon: 'dark-mode' },
+              ] as const).map((option) => (
+                <TouchableOpacity
+                  key={option.mode}
+                  style={[
+                    styles.themeOption,
+                    {
+                      backgroundColor: themeMode === option.mode ? colors.primaryLight : colors.surface,
+                      borderColor: themeMode === option.mode ? colors.primary : colors.border,
+                      borderRadius: borderRadius.md,
+                    },
+                  ]}
+                  onPress={() => {
+                    if (hapticEnabled) {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }
+                    setThemeMode(option.mode);
+                  }}
+                >
+                  <MaterialIcons
+                    name={option.icon as any}
+                    size={24}
+                    color={themeMode === option.mode ? colors.primary : colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      typography.labelSmall,
+                      { color: themeMode === option.mode ? colors.primary : colors.text, marginTop: 4 },
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         )}
       </Card>
 
@@ -224,62 +406,17 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </Card>
 
-      {/* 테마 설정 */}
-      <Text style={[typography.labelMedium, { color: colors.text, marginTop: spacing.lg, marginBottom: spacing.sm }]}>
-        테마
-      </Text>
-      <Card style={styles.menuCard}>
-        <View style={styles.menuItem}>
-          <View style={styles.menuLeft}>
-            <View style={[styles.iconContainer, { backgroundColor: colors.primaryLight }]}>
-              <MaterialIcons name="palette" size={20} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[typography.bodyMedium, { color: colors.text }]}>테마 모드</Text>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                현재: {themeMode === 'system' ? '시스템 설정' : themeMode === 'dark' ? '다크 모드' : '라이트 모드'}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={[styles.themeOptions, { borderTopColor: colors.border, paddingHorizontal: spacing.base, paddingBottom: spacing.base }]}>
-          {([
-            { mode: 'system' as ThemeMode, label: '시스템', icon: 'phone-iphone' },
-            { mode: 'light' as ThemeMode, label: '라이트', icon: 'light-mode' },
-            { mode: 'dark' as ThemeMode, label: '다크', icon: 'dark-mode' },
-          ] as const).map((option) => (
-            <TouchableOpacity
-              key={option.mode}
-              style={[
-                styles.themeOption,
-                {
-                  backgroundColor: themeMode === option.mode ? colors.primaryLight : colors.surface,
-                  borderColor: themeMode === option.mode ? colors.primary : colors.border,
-                },
-              ]}
-              onPress={() => {
-                if (hapticEnabled) {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }
-                setThemeMode(option.mode);
-              }}
-            >
-              <MaterialIcons
-                name={option.icon as any}
-                size={24}
-                color={themeMode === option.mode ? colors.primary : colors.textSecondary}
-              />
-              <Text
-                style={[
-                  typography.labelSmall,
-                  { color: themeMode === option.mode ? colors.primary : colors.text, marginTop: 4 },
-                ]}
-              >
-                {option.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+      {/* 도움말 (환율 바로 아래) */}
+      <Card style={[styles.helpCard, { backgroundColor: colors.surface, marginTop: spacing.md }]}>
+        <MaterialIcons name="lightbulb" size={24} color={colors.warning} />
+        <View style={{ flex: 1, marginLeft: spacing.sm }}>
+          <Text style={[typography.bodySmall, { color: colors.text, fontWeight: '600' }]}>
+            알고 계셨나요?
+          </Text>
+          <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 4 }]}>
+            환율은 하루에 한 번 자동으로 업데이트됩니다.{'\n'}
+            통화 토글은 앱 전체에 적용되며, 각 화면에서도 변경할 수 있어요.
+          </Text>
         </View>
       </Card>
 
@@ -301,77 +438,6 @@ export default function SettingsScreen() {
         </View>
       </Card>
 
-      {/* 계정 */}
-      <Text style={[typography.labelMedium, { color: colors.text, marginTop: spacing.lg, marginBottom: spacing.sm }]}>
-        계정
-      </Text>
-      <Card style={styles.menuCard}>
-        <View style={styles.menuItem}>
-          <View style={styles.menuLeft}>
-            <View style={[styles.iconContainer, { backgroundColor: colors.primaryLight }]}>
-              <MaterialIcons name="person" size={20} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[typography.bodyMedium, { color: colors.text }]}>
-                {user?.name || '사용자'}
-              </Text>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                {user?.email}
-              </Text>
-            </View>
-            {syncStatus === 'syncing' && (
-              <ActivityIndicator size="small" color={colors.primary} />
-            )}
-            {syncStatus === 'offline' && (
-              <View style={[styles.statusBadge, { backgroundColor: colors.textTertiary }]}>
-                <Text style={styles.statusBadgeText}>오프라인</Text>
-              </View>
-            )}
-            {pendingChanges > 0 && syncStatus !== 'syncing' && (
-              <View style={[styles.statusBadge, { backgroundColor: colors.warning }]}>
-                <Text style={styles.statusBadgeText}>{pendingChanges}개 대기</Text>
-              </View>
-            )}
-          </View>
-        </View>
-
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={handleLogout}
-          disabled={isAuthLoading}
-        >
-          <View style={styles.menuLeft}>
-            <View style={[styles.iconContainer, { backgroundColor: colors.error + '20' }]}>
-              <MaterialIcons name="logout" size={20} color={colors.error} />
-            </View>
-            <Text style={[typography.bodyMedium, { color: colors.error }]}>
-              로그아웃
-            </Text>
-          </View>
-          {isAuthLoading ? (
-            <ActivityIndicator size="small" color={colors.error} />
-          ) : (
-            <MaterialIcons name="chevron-right" size={24} color={colors.textTertiary} />
-          )}
-        </TouchableOpacity>
-      </Card>
-
-      {/* 도움말 */}
-      <Card style={[styles.helpCard, { backgroundColor: colors.surface, marginTop: spacing.lg }]}>
-        <MaterialIcons name="lightbulb" size={24} color={colors.warning} />
-        <View style={{ flex: 1, marginLeft: spacing.sm }}>
-          <Text style={[typography.bodySmall, { color: colors.text, fontWeight: '600' }]}>
-            알고 계셨나요?
-          </Text>
-          <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 4 }]}>
-            환율은 하루에 한 번 자동으로 업데이트됩니다.{'\n'}
-            통화 토글은 앱 전체에 적용되며, 각 화면에서도 변경할 수 있어요.
-          </Text>
-        </View>
-      </Card>
-
       {/* 하단 여백 */}
       <View style={{ height: 100 }} />
     </ScrollView>
@@ -388,6 +454,15 @@ const styles = StyleSheet.create({
   menuCard: {
     padding: 0,
     overflow: 'hidden',
+  },
+  accordionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  accordionContent: {
+    borderTopWidth: 1,
   },
   menuItem: {
     flexDirection: 'row',
@@ -450,16 +525,13 @@ const styles = StyleSheet.create({
   themeOptions: {
     flexDirection: 'row',
     gap: 12,
-    borderTopWidth: 1,
-    paddingTop: 12,
-    marginLeft: 64,
+    padding: 16,
   },
   themeOption: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 16,
     borderWidth: 1,
   },
 });

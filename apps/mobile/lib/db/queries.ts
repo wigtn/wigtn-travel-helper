@@ -22,7 +22,7 @@ export async function getActiveTrips(): Promise<Trip[]> {
   const db = await getDatabase();
   const today = new Date().toISOString().split('T')[0];
   const result = await db.getAllAsync<Trip>(
-    'SELECT * FROM trips WHERE startDate <= ? AND endDate >= ? ORDER BY startDate DESC',
+    'SELECT * FROM trips WHERE startDate <= ? AND endDate >= ? ORDER BY createdAt DESC',
     [today, today]
   );
   return result;

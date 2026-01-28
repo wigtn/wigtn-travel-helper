@@ -8,7 +8,7 @@ import { router } from 'expo-router';
 import { useTheme } from '../../lib/theme';
 import { useSettingsStore } from '../../lib/stores/settingsStore';
 import { DayExpenseGroup, Expense } from '../../lib/types';
-import { getCurrencyInfo, CATEGORIES } from '../../lib/utils/constants';
+import { getCurrencyInfo, CATEGORIES, getCountryFlag } from '../../lib/utils/constants';
 import { formatCurrency, formatKRW } from '../../lib/utils/currency';
 import { Card, CategoryIcon } from '../ui';
 
@@ -22,8 +22,7 @@ export function CountryLayer({ group, showDate = false }: CountryLayerProps) {
   const { currencyDisplayMode } = useSettingsStore();
   const showInKRW = currencyDisplayMode === 'krw';
 
-  const currencyInfo = getCurrencyInfo(group.destination.currency);
-  const flag = currencyInfo?.flag || '';
+  const flag = getCountryFlag(group.destination.country);
   const countryName = group.destination.countryName || group.destination.country;
 
   // 소계 표시

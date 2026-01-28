@@ -127,7 +127,7 @@ export default function RootLayout() {
         }}
       >
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false, headerBackTitle: '' }} />
         <Stack.Screen
           name="trip/new"
           options={{
@@ -149,7 +149,8 @@ export default function RootLayout() {
         <Stack.Screen
           name="trip/[id]"
           options={{
-            title: "여행 상세",
+            title: "",
+            headerBackTitleVisible: false,
           }}
         />
         <Stack.Screen

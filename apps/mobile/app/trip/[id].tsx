@@ -20,7 +20,7 @@ import { useSettingsStore } from '../../lib/stores/settingsStore';
 import { Card, Button, CategoryIcon, CurrencyToggle } from '../../components/ui';
 import { formatKRW, getCurrencyFlag, formatCurrency } from '../../lib/utils/currency';
 import { formatFullDate, getDaysBetween, formatDisplayDate } from '../../lib/utils/date';
-import { CATEGORIES, getCurrencyInfo } from '../../lib/utils/constants';
+import { CATEGORIES, getCurrencyInfo, getCountryFlag } from '../../lib/utils/constants';
 import { Trip, Destination } from '../../lib/types';
 
 export default function TripDetailScreen() {
@@ -58,9 +58,9 @@ export default function TripDetailScreen() {
 
   const stats = trip ? getStats(trip.id) : null;
 
-  // 첫 번째 방문지의 통화 플래그
+  // 첫 번째 방문지의 국기 (국가 기반)
   const primaryFlag = tripDestinations.length > 0
-    ? getCurrencyFlag(tripDestinations[0].currency)
+    ? getCountryFlag(tripDestinations[0].country)
     : '🌍';
 
   const handleDelete = () => {
@@ -116,9 +116,32 @@ export default function TripDetailScreen() {
     <>
       <Stack.Screen
         options={{
-          title: trip.name,
+          title: '',
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={{
+                width: 40,
+                height: 40,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <MaterialIcons name="chevron-left" size={32} color={colors.text} />
+            </TouchableOpacity>
+          ),
           headerRight: () => (
-            <TouchableOpacity onPress={handleDelete} style={{ padding: spacing.xs }}>
+            <TouchableOpacity
+              onPress={handleDelete}
+              style={{
+                width: 40,
+                height: 40,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
               <MaterialIcons name="delete" size={24} color={colors.error} />
             </TouchableOpacity>
           ),
@@ -132,7 +155,7 @@ export default function TripDetailScreen() {
         {/* 여행 정보 */}
         <Card style={styles.infoCard}>
           <View style={styles.tripHeader}>
-            <Text style={styles.flag}>{primaryFlag}</Text>
+            {/* <Text style={styles.flag}>{primaryFlag}</Text> */}
             <View style={styles.tripInfo}>
               <Text style={[typography.headlineSmall, { color: colors.text }]}>{trip.name}</Text>
               <Text style={[typography.bodySmall, { color: colors.textSecondary, marginTop: 4 }]}>
@@ -148,7 +171,6 @@ export default function TripDetailScreen() {
           {tripDestinations.length > 0 && (
             <View style={[styles.destinationsRow, { marginTop: spacing.md }]}>
               {tripDestinations.map((dest, index) => {
-                const currencyInfo = getCurrencyInfo(dest.currency);
                 return (
                   <View
                     key={dest.id}
@@ -157,7 +179,7 @@ export default function TripDetailScreen() {
                       { backgroundColor: colors.surface, borderRadius: borderRadius.sm },
                     ]}
                   >
-                    <Text style={{ fontSize: 14 }}>{currencyInfo?.flag}</Text>
+                    <Text style={{ fontSize: 14 }}>{getCountryFlag(dest.country)}</Text>
                     <Text style={[typography.caption, { color: colors.text, marginLeft: 4 }]}>
                       {dest.city || dest.country}
                     </Text>
@@ -262,7 +284,7 @@ export default function TripDetailScreen() {
                           </Text>
                           {dest && (
                             <Text style={[typography.caption, { color: colors.textSecondary, marginLeft: spacing.xs }]}>
-                              {getCurrencyInfo(dest.currency)?.flag}
+                              {getCountryFlag(dest.country)}
                             </Text>
                           )}
                         </View>

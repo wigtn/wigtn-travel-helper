@@ -10,12 +10,14 @@ import { useTheme } from '../../lib/theme';
 import { useTripStore } from '../../lib/stores/tripStore';
 import { useExpenseStore } from '../../lib/stores/expenseStore';
 import { useSettingsStore } from '../../lib/stores/settingsStore';
-import { Card, FAB, ProgressBar, EmptyState, CategoryIcon, CurrencyToggle, HomeScreenSkeleton, ExpenseListSkeleton, ExpenseCardSkeleton } from '../../components/ui';
+import { Card, FABMenu, FABMenuItem, ProgressBar, EmptyState, CategoryIcon, CurrencyToggle, HomeScreenSkeleton, ExpenseListSkeleton, ExpenseCardSkeleton } from '../../components/ui';
 import { DayLayerView } from '../../components/layer';
 import { formatKRW, formatCurrency } from '../../lib/utils/currency';
 import { formatDisplayDate, getDaysBetween, getToday } from '../../lib/utils/date';
-import { getCurrencyInfo, CATEGORIES } from '../../lib/utils/constants';
+import { getCurrencyInfo, CATEGORIES, getCountryFlag } from '../../lib/utils/constants';
 import { Trip, DayExpenseGroup } from '../../lib/types';
+
+type MenuStep = 'closed' | 'main' | 'receipt';
 
 export default function HomeScreen() {
   const { colors, spacing, typography, borderRadius, isDark } = useTheme();
@@ -41,6 +43,72 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [dayIndex, setDayIndex] = useState(1);
   const [todayGroups, setTodayGroups] = useState<DayExpenseGroup[]>([]);
+
+  // FAB 메뉴 상태
+  const [menuStep, setMenuStep] = useState<MenuStep>('closed');
+
+  // 메뉴 닫고 페이지 이동 (애니메이션 완료 후)
+  const closeMenuAndNavigate = (path: string) => {
+    setMenuStep('closed');
+    setTimeout(() => {
+      router.push(path as any);
+    }, 200);
+  };
+
+  // 메인 메뉴 아이템 (영수증/직접입력)
+  const mainMenuItems: FABMenuItem[] = [
+    {
+      id: 'receipt',
+      icon: 'camera-alt',
+      label: '영수증 입력하기',
+      description: '영수증 사진으로 빠르게 등록',
+      keepOpen: true, // 메뉴 열린 상태 유지
+      onPress: () => {
+        setMenuStep('receipt');
+      },
+    },
+    {
+      id: 'manual',
+      icon: 'edit',
+      label: '직접 입력하기',
+      description: '금액과 정보를 직접 입력',
+      onPress: () => {
+        closeMenuAndNavigate('/expense/new?mode=manual');
+      },
+    },
+  ];
+
+  // 영수증 소스 메뉴 아이템 (카메라/갤러리)
+  const receiptMenuItems: FABMenuItem[] = [
+    {
+      id: 'camera',
+      icon: 'photo-camera',
+      label: '카메라로 촬영',
+      description: '지금 바로 영수증 촬영',
+      onPress: () => {
+        closeMenuAndNavigate('/expense/new?mode=receipt&source=camera');
+      },
+    },
+    {
+      id: 'gallery',
+      icon: 'photo-library',
+      label: '갤러리에서 선택',
+      description: '저장된 사진에서 선택',
+      onPress: () => {
+        closeMenuAndNavigate('/expense/new?mode=receipt&source=gallery');
+      },
+    },
+  ];
+
+  const handleMenuOpenChange = (isOpen: boolean) => {
+    if (isOpen) {
+      setMenuStep('main');
+    } else {
+      setMenuStep('closed');
+    }
+  };
+
+  const currentMenuItems = menuStep === 'receipt' ? receiptMenuItems : mainMenuItems;
 
   const loadData = useCallback(async () => {
     if (activeTrip) {
@@ -133,8 +201,6 @@ export default function HomeScreen() {
               >
                 {activeTrips.map((trip) => {
                   const isSelected = activeTrip?.id === trip.id;
-                  const dest = destinations.find(d => d.tripId === trip.id);
-                  const flag = dest ? getCurrencyInfo(dest.currency)?.flag || '' : '';
 
                   return (
                     <TouchableOpacity
@@ -149,7 +215,6 @@ export default function HomeScreen() {
                         },
                       ]}
                     >
-                      <Text style={styles.tripTabFlag}>{flag}</Text>
                       <Text
                         style={[
                           typography.labelMedium,
@@ -171,7 +236,7 @@ export default function HomeScreen() {
               {currentDestination && (
                 <View style={styles.locationBadge}>
                   <Text style={styles.locationFlag}>
-                    {getCurrencyInfo(currentDestination.currency)?.flag}
+                    {getCountryFlag(currentDestination.country)}
                   </Text>
                   <Text style={[typography.labelSmall, { color: colors.textSecondary }]}>
                     Day {dayIndex}
@@ -284,7 +349,7 @@ export default function HomeScreen() {
             </Text>
             {trips.slice(0, 3).map((trip) => {
               const dest = destinations.find(d => d.tripId === trip.id);
-              const flag = dest ? getCurrencyInfo(dest.currency)?.flag : '';
+              const flag = dest ? getCountryFlag(dest.country) : '';
 
               return (
                 <Card
@@ -312,9 +377,13 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      {/* FAB - 빠른 지출 입력 */}
+      {/* FAB 메뉴 - 빠른 지출 입력 */}
       {activeTrips.length > 0 && (
-        <FAB icon="add" onPress={() => router.push('/expense/new')} />
+        <FABMenu
+          items={currentMenuItems}
+          isOpen={menuStep !== 'closed'}
+          onOpenChange={handleMenuOpenChange}
+        />
       )}
     </View>
   );
@@ -342,10 +411,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderWidth: 1,
-    gap: 6,
-  },
-  tripTabFlag: {
-    fontSize: 16,
   },
   toggleRow: {
     flexDirection: 'row',

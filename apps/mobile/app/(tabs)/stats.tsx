@@ -10,6 +10,7 @@ import { useExpenseStore } from '../../lib/stores/expenseStore';
 import { useSettingsStore } from '../../lib/stores/settingsStore';
 import { Card, ProgressBar, CategoryIcon, EmptyState, CurrencyToggle, StatsScreenSkeleton } from '../../components/ui';
 import { formatKRW, formatCurrency, getCurrencyFlag } from '../../lib/utils/currency';
+import { getCountryFlag } from '../../lib/utils/constants';
 import { CATEGORIES, Category } from '../../lib/utils/constants';
 import { getDaysBetween, formatDisplayDate } from '../../lib/utils/date';
 
@@ -426,7 +427,7 @@ export default function StatsScreen() {
               >
                 <View style={styles.detailLeft}>
                   <Text style={styles.currencyFlag}>
-                    {getCurrencyFlag(item.destination?.currency || 'USD')}
+                    {item.destination ? getCountryFlag(item.destination.country) : '🌍'}
                   </Text>
                   <View style={{ marginLeft: spacing.sm }}>
                     <Text style={[typography.bodyMedium, { color: colors.text }]}>

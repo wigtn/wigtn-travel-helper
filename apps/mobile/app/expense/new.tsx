@@ -1,7 +1,7 @@
 // Travel Helper v2.0 - New Expense Screen
 // PRD receipt-expense-input: 영수증 입력/직접 입력 분기
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -31,7 +31,8 @@ import {
   PermissionDeniedView,
 } from '../../components/expense';
 import { CATEGORIES, Category } from '../../lib/utils/constants';
-import { formatKRW, getCurrencySymbol, getCurrencyFlag } from '../../lib/utils/currency';
+import { formatKRW, getCurrencySymbol } from '../../lib/utils/currency';
+import { getCountryFlag } from '../../lib/utils/constants';
 import { formatDate, formatFullDate, formatTime, formatTimeForApi } from '../../lib/utils/date';
 import {
   pickImageFromGallery,
@@ -51,6 +52,7 @@ type InputStep =
   | 'select-method'
   | 'receipt-options'
   | 'camera'
+  | 'gallery-loading'
   | 'gallery-permission-denied'
   | 'manual'
   | 'receipt-form';
@@ -62,8 +64,19 @@ export default function NewExpenseScreen() {
   const { getRate, convert } = useExchangeRateStore();
   const { hapticEnabled } = useSettingsStore();
 
+  // URL query params
+  const { mode, source } = useLocalSearchParams<{ mode?: string; source?: string }>();
+
+  // 초기 step 결정
+  const getInitialStep = (): InputStep => {
+    if (mode === 'manual') return 'manual';
+    if (mode === 'receipt' && source === 'camera') return 'camera';
+    if (mode === 'receipt' && source === 'gallery') return 'gallery-loading';
+    return 'select-method';
+  };
+
   // 입력 플로우 상태
-  const [step, setStep] = useState<InputStep>('select-method');
+  const [step, setStep] = useState<InputStep>(getInitialStep);
   const [receiptImage, setReceiptImage] = useState<ReceiptImage | null>(null);
 
   // 여행 & 방문지 선택
@@ -101,16 +114,44 @@ export default function NewExpenseScreen() {
     router.back();
   }, [receiptImage]);
 
-  // 초기화
+  // 초기화 - activeTrip이 이미 설정되어 있으면 바로 사용
   useEffect(() => {
-    if (activeTrips.length > 1 && !selectedTrip) {
-      setShowTripSelector(true);
-    } else if (activeTrips.length === 1) {
-      handleTripSelect(activeTrips[0]);
-    } else if (activeTrip && !selectedTrip) {
+    if (activeTrip && !selectedTrip) {
       handleTripSelect(activeTrip);
+    } else if (activeTrips.length === 1 && !selectedTrip) {
+      handleTripSelect(activeTrips[0]);
     }
+    // 여행 선택 모달은 더 이상 표시하지 않음 (설정에서 이미 선택됨)
   }, [activeTrips, activeTrip]);
+
+  // 갤러리 자동 선택 (query param으로 진입 시) - 한 번만 실행
+  const galleryLoadedRef = useRef(false);
+  useEffect(() => {
+    const loadFromGallery = async () => {
+      if (step === 'gallery-loading' && !galleryLoadedRef.current) {
+        galleryLoadedRef.current = true;
+
+        const permission = await requestGalleryPermission();
+        if (permission === 'never_ask_again') {
+          setStep('gallery-permission-denied');
+          return;
+        }
+
+        const result = await pickImageFromGallery();
+        if (result.success && result.image) {
+          setReceiptImage(result.image);
+          setStep('receipt-form');
+        } else if (result.error && result.error !== 'CANCELLED') {
+          Alert.alert('오류', getImageErrorMessage(result.error));
+          router.back();
+        } else {
+          // 취소한 경우
+          router.back();
+        }
+      }
+    };
+    loadFromGallery();
+  }, [step]);
 
   // 여행 선택 시 방문지 로드
   const handleTripSelect = async (trip: Trip) => {
@@ -132,7 +173,7 @@ export default function NewExpenseScreen() {
   // 통화 관련 계산
   const currency = selectedDestination?.currency || 'USD';
   const currencySymbol = getCurrencySymbol(currency);
-  const currencyFlag = getCurrencyFlag(currency);
+  const currencyFlag = selectedDestination ? getCountryFlag(selectedDestination.country) : '🌍';
   const exchangeRate = getRate(currency);
   const amountKRW = amount ? convert(parseFloat(amount), currency) : 0;
 
@@ -181,7 +222,12 @@ export default function NewExpenseScreen() {
       await deleteReceiptImage(receiptImage.uri);
       setReceiptImage(null);
     }
-    setStep('receipt-options');
+    // query param으로 진입한 경우 홈으로 돌아가기
+    if (mode === 'receipt') {
+      router.back();
+    } else {
+      setStep('receipt-options');
+    }
   };
 
   const handleAmountChange = (text: string) => {
@@ -299,8 +345,26 @@ export default function NewExpenseScreen() {
     return (
       <ReceiptCamera
         onCapture={handleCameraCapture}
-        onBack={() => setStep('receipt-options')}
+        onBack={() => {
+          // query param으로 진입한 경우 홈으로 돌아가기
+          if (mode === 'receipt') {
+            router.back();
+          } else {
+            setStep('receipt-options');
+          }
+        }}
       />
+    );
+  }
+
+  if (step === 'gallery-loading') {
+    return (
+      <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
+        <MaterialIcons name="photo-library" size={48} color={colors.textTertiary} />
+        <Text style={[typography.bodyMedium, { color: colors.textSecondary, marginTop: spacing.md }]}>
+          갤러리 불러오는 중...
+        </Text>
+      </View>
     );
   }
 
@@ -308,7 +372,7 @@ export default function NewExpenseScreen() {
     return (
       <PermissionDeniedView
         type="gallery"
-        onBack={() => setStep('receipt-options')}
+        onBack={() => router.back()}
       />
     );
   }
@@ -549,7 +613,7 @@ export default function NewExpenseScreen() {
             onPress={() => handleDestinationSelect(dest)}
           >
             <View style={styles.optionItemRow}>
-              <Text style={styles.optionFlag}>{getCurrencyFlag(dest.currency)}</Text>
+              <Text style={styles.optionFlag}>{getCountryFlag(dest.country)}</Text>
               <View>
                 <Text style={[typography.titleSmall, { color: colors.text }]}>
                   {dest.city ? `${dest.country} · ${dest.city}` : dest.country}

@@ -17,7 +17,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../../lib/theme';
 import { useTripStore } from '../../lib/stores/tripStore';
 import { Button, Input, Card, BottomSheet } from '../../components/ui';
-import { CURRENCIES, POPULAR_COUNTRIES, getCurrencyInfo } from '../../lib/utils/constants';
+import { CURRENCIES, POPULAR_COUNTRIES, getCurrencyInfo, getCountryFlag } from '../../lib/utils/constants';
 import { formatDate, formatFullDate } from '../../lib/utils/date';
 import { Destination } from '../../lib/types';
 
@@ -253,7 +253,7 @@ export default function NewTripScreen() {
               style={{ marginBottom: spacing.sm }}
             >
               <View style={styles.destRow}>
-                <Text style={styles.destFlag}>{currencyInfo?.flag}</Text>
+                <Text style={styles.destFlag}>{getCountryFlag(dest.country)}</Text>
                 <View style={styles.destInfo}>
                   <Text style={[typography.titleSmall, { color: colors.text }]}>
                     {dest.city ? `${dest.country} · ${dest.city}` : dest.country}

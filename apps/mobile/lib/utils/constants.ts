@@ -66,3 +66,13 @@ export function getCountryCode(countryName: string): string {
 export function getCategoryInfo(id: Category) {
   return CATEGORIES.find(c => c.id === id);
 }
+
+// 국가명으로 국기 찾기 (통화가 아닌 국가 기반)
+export function getCountryFlag(countryName: string): string {
+  const found = POPULAR_COUNTRIES.find(c => c.country === countryName);
+  if (found) return found.flag;
+
+  // POPULAR_COUNTRIES에 없으면 통화 기반으로 fallback
+  const currency = CURRENCIES.find(c => c.country === countryName);
+  return currency?.flag || '🌍';
+}
