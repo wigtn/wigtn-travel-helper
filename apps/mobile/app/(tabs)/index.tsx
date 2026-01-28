@@ -10,7 +10,7 @@ import { useTheme } from '../../lib/theme';
 import { useTripStore } from '../../lib/stores/tripStore';
 import { useExpenseStore } from '../../lib/stores/expenseStore';
 import { useSettingsStore } from '../../lib/stores/settingsStore';
-import { Card, FAB, ProgressBar, EmptyState, CategoryIcon, CurrencyToggle } from '../../components/ui';
+import { Card, FAB, ProgressBar, EmptyState, CategoryIcon, CurrencyToggle, HomeScreenSkeleton, ExpenseListSkeleton, ExpenseCardSkeleton } from '../../components/ui';
 import { DayLayerView } from '../../components/layer';
 import { formatKRW, formatCurrency } from '../../lib/utils/currency';
 import { formatDisplayDate, getDaysBetween, getToday } from '../../lib/utils/date';
@@ -25,12 +25,13 @@ export default function HomeScreen() {
     trips,
     destinations,
     currentDestination,
+    isLoading,
     loadTrips,
     loadActiveTrips,
     setActiveTrip,
     getCurrentLocation,
   } = useTripStore();
-  const { expenses, loadExpenses, getTodayTotal, getTotalByTrip, getExpensesByCurrency, getExpensesByDateGrouped } = useExpenseStore();
+  const { expenses, isLoading: isExpenseLoading, loadExpenses, getTodayTotal, getTotalByTrip, getExpensesByCurrency, getExpensesByDateGrouped } = useExpenseStore();
   const { currencyDisplayMode } = useSettingsStore();
   const showInKRW = currencyDisplayMode === 'krw';
 
@@ -94,6 +95,11 @@ export default function HomeScreen() {
     : primaryCurrency
       ? formatCurrency(totalLocalAmount, primaryCurrency)
       : formatKRW(totalExpense);
+
+  // 초기 로딩 중일 때 Skeleton 표시
+  if (isLoading && trips.length === 0) {
+    return <HomeScreenSkeleton />;
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -175,65 +181,71 @@ export default function HomeScreen() {
             </View>
 
             {/* 오늘/총 지출 카드 */}
-            <Card variant="elevated">
-              {/* 오늘 지출 */}
-              <View style={styles.expenseSection}>
-                <Text style={[typography.labelMedium, { color: colors.textSecondary }]}>
-                  오늘 지출
-                </Text>
-                <Text style={[typography.displayMedium, { color: colors.primary }]}>
-                  {displayTodayAmount}
-                </Text>
-                {!showInKRW && todayExpense.totalKRW > 0 && (
-                  <Text style={[typography.bodySmall, { color: colors.textTertiary }]}>
-                    ≈ {formatKRW(todayExpense.totalKRW)}
+            {isExpenseLoading && expenses.length === 0 ? (
+              <ExpenseCardSkeleton />
+            ) : (
+              <Card variant="elevated">
+                {/* 오늘 지출 */}
+                <View style={styles.expenseSection}>
+                  <Text style={[typography.labelMedium, { color: colors.textSecondary }]}>
+                    오늘 지출
                   </Text>
-                )}
-              </View>
-
-              <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-
-              {/* 총 지출 */}
-              <View style={styles.expenseSection}>
-                <Text style={[typography.labelMedium, { color: colors.textSecondary }]}>
-                  총 지출
-                </Text>
-                <Text style={[typography.titleLarge, { color: colors.text }]}>
-                  {displayTotalAmount}
-                </Text>
-                {!showInKRW && totalExpense > 0 && (
-                  <Text style={[typography.bodySmall, { color: colors.textTertiary }]}>
-                    ≈ {formatKRW(totalExpense)}
+                  <Text style={[typography.displayMedium, { color: colors.primary }]}>
+                    {displayTodayAmount}
                   </Text>
-                )}
-              </View>
-
-              {/* 예산 진행률 */}
-              {activeTrip.budget && (
-                <View style={{ marginTop: spacing.md }}>
-                  <View style={styles.budgetRow}>
-                    <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                      예산 {formatKRW(activeTrip.budget)}
+                  {!showInKRW && todayExpense.totalKRW > 0 && (
+                    <Text style={[typography.bodySmall, { color: colors.textTertiary }]}>
+                      ≈ {formatKRW(todayExpense.totalKRW)}
                     </Text>
-                    <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                      {Math.round((totalExpense / activeTrip.budget) * 100)}%
-                    </Text>
-                  </View>
-                  <ProgressBar
-                    progress={totalExpense / activeTrip.budget}
-                    variant="budget"
-                    height={6}
-                  />
+                  )}
                 </View>
-              )}
-            </Card>
+
+                <View style={[styles.divider, { backgroundColor: colors.divider }]} />
+
+                {/* 총 지출 */}
+                <View style={styles.expenseSection}>
+                  <Text style={[typography.labelMedium, { color: colors.textSecondary }]}>
+                    총 지출
+                  </Text>
+                  <Text style={[typography.titleLarge, { color: colors.text }]}>
+                    {displayTotalAmount}
+                  </Text>
+                  {!showInKRW && totalExpense > 0 && (
+                    <Text style={[typography.bodySmall, { color: colors.textTertiary }]}>
+                      ≈ {formatKRW(totalExpense)}
+                    </Text>
+                  )}
+                </View>
+
+                {/* 예산 진행률 */}
+                {activeTrip.budget && (
+                  <View style={{ marginTop: spacing.md }}>
+                    <View style={styles.budgetRow}>
+                      <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                        예산 {formatKRW(activeTrip.budget)}
+                      </Text>
+                      <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                        {Math.round((totalExpense / activeTrip.budget) * 100)}%
+                      </Text>
+                    </View>
+                    <ProgressBar
+                      progress={totalExpense / activeTrip.budget}
+                      variant="budget"
+                      height={6}
+                    />
+                  </View>
+                )}
+              </Card>
+            )}
 
             {/* 오늘의 지출 - 다중 국가 레이어 뷰 */}
             <View style={{ marginTop: spacing.xl }}>
               <Text style={[typography.titleMedium, { color: colors.text, marginBottom: spacing.md }]}>
                 오늘의 지출
               </Text>
-              {todayGroups.length > 0 ? (
+              {isExpenseLoading && expenses.length === 0 ? (
+                <ExpenseListSkeleton />
+              ) : todayGroups.length > 0 ? (
                 <DayLayerView
                   date={getToday()}
                   groups={todayGroups}

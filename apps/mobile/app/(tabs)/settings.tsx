@@ -22,12 +22,13 @@ import { useAuthStore } from '../../lib/stores/authStore';
 import { useSyncStore } from '../../lib/stores/syncStore';
 import { Card, CurrencyToggle } from '../../components/ui';
 import { formatDisplayDate } from '../../lib/utils/date';
+import { ThemeMode } from '../../lib/types';
 
 export default function SettingsScreen() {
   const { colors, spacing, typography, isDark } = useTheme();
   const { trips, activeTrip } = useTripStore();
   const { lastUpdated, loadRates } = useExchangeRateStore();
-  const { hapticEnabled, setHapticEnabled, currencyDisplayMode } = useSettingsStore();
+  const { hapticEnabled, setHapticEnabled, currencyDisplayMode, themeMode, setThemeMode } = useSettingsStore();
   const { user, logout, isLoading: isAuthLoading } = useAuthStore();
   const { status: syncStatus, pendingChanges } = useSyncStore();
 
@@ -223,6 +224,65 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </Card>
 
+      {/* 테마 설정 */}
+      <Text style={[typography.labelMedium, { color: colors.text, marginTop: spacing.lg, marginBottom: spacing.sm }]}>
+        테마
+      </Text>
+      <Card style={styles.menuCard}>
+        <View style={styles.menuItem}>
+          <View style={styles.menuLeft}>
+            <View style={[styles.iconContainer, { backgroundColor: colors.primaryLight }]}>
+              <MaterialIcons name="palette" size={20} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.bodyMedium, { color: colors.text }]}>테마 모드</Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                현재: {themeMode === 'system' ? '시스템 설정' : themeMode === 'dark' ? '다크 모드' : '라이트 모드'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={[styles.themeOptions, { borderTopColor: colors.border, paddingHorizontal: spacing.base, paddingBottom: spacing.base }]}>
+          {([
+            { mode: 'system' as ThemeMode, label: '시스템', icon: 'phone-iphone' },
+            { mode: 'light' as ThemeMode, label: '라이트', icon: 'light-mode' },
+            { mode: 'dark' as ThemeMode, label: '다크', icon: 'dark-mode' },
+          ] as const).map((option) => (
+            <TouchableOpacity
+              key={option.mode}
+              style={[
+                styles.themeOption,
+                {
+                  backgroundColor: themeMode === option.mode ? colors.primaryLight : colors.surface,
+                  borderColor: themeMode === option.mode ? colors.primary : colors.border,
+                },
+              ]}
+              onPress={() => {
+                if (hapticEnabled) {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }
+                setThemeMode(option.mode);
+              }}
+            >
+              <MaterialIcons
+                name={option.icon as any}
+                size={24}
+                color={themeMode === option.mode ? colors.primary : colors.textSecondary}
+              />
+              <Text
+                style={[
+                  typography.labelSmall,
+                  { color: themeMode === option.mode ? colors.primary : colors.text, marginTop: 4 },
+                ]}
+              >
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </Card>
+
       {/* 앱 정보 */}
       <Text style={[typography.labelMedium, { color: colors.text, marginTop: spacing.lg, marginBottom: spacing.sm }]}>
         앱 정보
@@ -236,22 +296,6 @@ export default function SettingsScreen() {
             <View>
               <Text style={[typography.bodyMedium, { color: colors.text }]}>버전</Text>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>1.1.0</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-        <View style={styles.menuItem}>
-          <View style={styles.menuLeft}>
-            <View style={[styles.iconContainer, { backgroundColor: colors.surface }]}>
-              <MaterialIcons name="palette" size={20} color={colors.textSecondary} />
-            </View>
-            <View>
-              <Text style={[typography.bodyMedium, { color: colors.text }]}>테마</Text>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                {isDark ? '다크 모드' : '라이트 모드'} (시스템 설정)
-              </Text>
             </View>
           </View>
         </View>
@@ -402,5 +446,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     padding: 16,
+  },
+  themeOptions: {
+    flexDirection: 'row',
+    gap: 12,
+    borderTopWidth: 1,
+    paddingTop: 12,
+    marginLeft: 64,
+  },
+  themeOption: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
   },
 });

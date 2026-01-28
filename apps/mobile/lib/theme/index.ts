@@ -6,6 +6,7 @@ import { typography, Typography } from './typography';
 import { spacing, borderRadius, iconSize, componentSpacing, Spacing, BorderRadius } from './spacing';
 import { shadows, Shadows } from './shadows';
 import { animation, animationPatterns, Animation } from './animation';
+import { useSettingsStore } from '../stores/settingsStore';
 
 export interface Theme {
   colors: Colors;
@@ -22,8 +23,14 @@ export interface Theme {
 }
 
 export function useTheme(): Theme {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const systemColorScheme = useColorScheme();
+  const themeMode = useSettingsStore((state) => state.themeMode);
+
+  // 테마 모드에 따라 다크 모드 여부 결정
+  const isDark =
+    themeMode === 'system'
+      ? systemColorScheme === 'dark'
+      : themeMode === 'dark';
 
   return {
     colors: isDark ? darkColors : lightColors,
