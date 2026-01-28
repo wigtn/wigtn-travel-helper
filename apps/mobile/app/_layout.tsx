@@ -1,15 +1,22 @@
 // Travel Helper v2.0 - Root Layout (with Auth & Sync)
 
-import { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { Stack, useRouter, useSegments } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { useTheme } from '../lib/theme';
-import { useExchangeRateStore } from '../lib/stores/exchangeRateStore';
-import { useTripStore } from '../lib/stores/tripStore';
-import { useExpenseStore } from '../lib/stores/expenseStore';
-import { useAuthStore } from '../lib/stores/authStore';
-import { useSyncStore } from '../lib/stores/syncStore';
+import { useEffect } from "react";
+import {
+  View,
+  ActivityIndicator,
+  StyleSheet,
+  TouchableOpacity,
+} from "react-native";
+import { Stack, useRouter, useSegments } from "expo-router";
+import { MaterialIcons } from "@expo/vector-icons";
+import { StatusBar } from "expo-status-bar";
+import { useTheme } from "../lib/theme";
+import { useExchangeRateStore } from "../lib/stores/exchangeRateStore";
+import { useTripStore } from "../lib/stores/tripStore";
+import { useExpenseStore } from "../lib/stores/expenseStore";
+import { useAuthStore } from "../lib/stores/authStore";
+import { useSyncStore } from "../lib/stores/syncStore";
+import { cleanupOldReceiptCache } from "../lib/utils/image";
 
 function SplashScreen() {
   const { colors } = useTheme();
@@ -23,45 +30,55 @@ function SplashScreen() {
 const styles = StyleSheet.create({
   splash: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
 
 export default function RootLayout() {
   const { colors, isDark } = useTheme();
-  const router = useRouter();
+  const navigation = useRouter();
   const segments = useSegments();
 
   // Auth state
-  const { isAuthenticated, isInitialized, initialize: initAuth } = useAuthStore();
+  const {
+    isAuthenticated,
+    isInitialized,
+    initialize: initAuth,
+  } = useAuthStore();
 
   // Sync state
   const { initialize: initSync, sync } = useSyncStore();
 
   // Data stores
   const loadRates = useExchangeRateStore((state) => state.loadRates);
-  const loadTripsFromServer = useTripStore((state) => state.loadTripsFromServer);
+  const loadTripsFromServer = useTripStore(
+    (state) => state.loadTripsFromServer,
+  );
   const activeTrip = useTripStore((state) => state.activeTrip);
-  const loadExpensesFromServer = useExpenseStore((state) => state.loadExpensesFromServer);
+  const loadExpensesFromServer = useExpenseStore(
+    (state) => state.loadExpensesFromServer,
+  );
 
   // Initialize auth on app start
   useEffect(() => {
     initAuth();
+    // Clean up old receipt cache (24+ hours old)
+    cleanupOldReceiptCache();
   }, []);
 
   // Handle auth-based routing
   useEffect(() => {
     if (!isInitialized) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
+    const inAuthGroup = segments[0] === "(auth)";
 
     if (!isAuthenticated && !inAuthGroup) {
       // Not logged in, redirect to login
-      router.replace('/(auth)/login');
+      navigation.replace("/(auth)/login");
     } else if (isAuthenticated && inAuthGroup) {
       // Logged in but on auth screen, redirect to main app
-      router.replace('/(tabs)');
+      navigation.replace("/(tabs)");
     }
   }, [isAuthenticated, isInitialized, segments]);
 
@@ -94,7 +111,7 @@ export default function RootLayout() {
 
   return (
     <>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <StatusBar style={isDark ? "light" : "dark"} />
       <Stack
         screenOptions={{
           headerStyle: {
@@ -102,7 +119,7 @@ export default function RootLayout() {
           },
           headerTintColor: colors.text,
           headerTitleStyle: {
-            fontWeight: '600',
+            fontWeight: "600",
           },
           contentStyle: {
             backgroundColor: colors.background,
@@ -114,28 +131,61 @@ export default function RootLayout() {
         <Stack.Screen
           name="trip/new"
           options={{
-            title: '새 여행 만들기',
-            presentation: 'modal',
+            title: "새 여행 만들기",
+            presentation: "modal",
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => navigation.back()}
+                style={{
+                  padding: 4,
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <MaterialIcons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            ),
           }}
         />
         <Stack.Screen
           name="trip/[id]"
           options={{
-            title: '여행 상세',
+            title: "여행 상세",
           }}
         />
         <Stack.Screen
           name="expense/new"
           options={{
-            title: '지출 입력',
-            presentation: 'modal',
+            title: "지출 입력",
+            presentation: "modal",
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => navigation.back()}
+                style={{
+                  padding: 4,
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <MaterialIcons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            ),
           }}
         />
         <Stack.Screen
           name="expense/[id]"
           options={{
-            title: '지출 수정',
-            presentation: 'modal',
+            title: "지출 수정",
+            presentation: "modal",
+            headerLeft: () => (
+              <TouchableOpacity
+                onPress={() => navigation.back()}
+                style={{
+                  padding: 4,
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <MaterialIcons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            ),
           }}
         />
       </Stack>

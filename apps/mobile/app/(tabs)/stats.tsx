@@ -8,7 +8,7 @@ import { useTheme } from '../../lib/theme';
 import { useTripStore } from '../../lib/stores/tripStore';
 import { useExpenseStore } from '../../lib/stores/expenseStore';
 import { useSettingsStore } from '../../lib/stores/settingsStore';
-import { Card, ProgressBar, CategoryIcon, EmptyState, CurrencyToggle } from '../../components/ui';
+import { Card, ProgressBar, CategoryIcon, EmptyState, CurrencyToggle, StatsScreenSkeleton } from '../../components/ui';
 import { formatKRW, formatCurrency, getCurrencyFlag } from '../../lib/utils/currency';
 import { CATEGORIES, Category } from '../../lib/utils/constants';
 import { getDaysBetween, formatDisplayDate } from '../../lib/utils/date';
@@ -17,7 +17,7 @@ type TabType = 'category' | 'currency' | 'destination';
 
 export default function StatsScreen() {
   const { colors, spacing, typography, borderRadius, isDark } = useTheme();
-  const { activeTrip, destinations } = useTripStore();
+  const { activeTrip, destinations, isLoading, trips } = useTripStore();
   const { expenses, loadExpenses, getStats } = useExpenseStore();
   const { currencyDisplayMode } = useSettingsStore();
   const showInKRW = currencyDisplayMode === 'krw';
@@ -154,6 +154,11 @@ export default function StatsScreen() {
     { id: 'currency', label: '통화', icon: 'attach-money' },
     { id: 'destination', label: '방문지', icon: 'place' },
   ];
+
+  // 초기 로딩 중일 때 Skeleton 표시
+  if (isLoading && trips.length === 0) {
+    return <StatsScreenSkeleton />;
+  }
 
   if (!activeTrip) {
     return (

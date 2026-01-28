@@ -1,7 +1,7 @@
-// Travel Helper v1.1 - New Expense Screen
-// PRD v1.1: 지갑/결제수단 기능 제거, 단순화된 지출 기록
+// Travel Helper v2.0 - New Expense Screen
+// PRD receipt-expense-input: 영수증 입력/직접 입력 분기
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,10 +23,37 @@ import { useExpenseStore } from '../../lib/stores/expenseStore';
 import { useExchangeRateStore } from '../../lib/stores/exchangeRateStore';
 import { useSettingsStore } from '../../lib/stores/settingsStore';
 import { Button, Card, BottomSheet, CategoryIcon } from '../../components/ui';
+import {
+  ExpenseInputMethodSelector,
+  ReceiptInputOptions,
+  ReceiptCamera,
+  ReceiptPreview,
+  PermissionDeniedView,
+} from '../../components/expense';
 import { CATEGORIES, Category } from '../../lib/utils/constants';
 import { formatKRW, getCurrencySymbol, getCurrencyFlag } from '../../lib/utils/currency';
 import { formatDate, formatFullDate, formatTime, formatTimeForApi } from '../../lib/utils/date';
-import { Trip, Destination } from '../../lib/types';
+import {
+  pickImageFromGallery,
+  deleteReceiptImage,
+  requestGalleryPermission,
+  getImageErrorMessage,
+} from '../../lib/utils/image';
+import {
+  Trip,
+  Destination,
+  ExpenseInputMethod,
+  ReceiptInputSource,
+  ReceiptImage,
+} from '../../lib/types';
+
+type InputStep =
+  | 'select-method'
+  | 'receipt-options'
+  | 'camera'
+  | 'gallery-permission-denied'
+  | 'manual'
+  | 'receipt-form';
 
 export default function NewExpenseScreen() {
   const { colors, spacing, typography, borderRadius, shadows } = useTheme();
@@ -34,6 +61,10 @@ export default function NewExpenseScreen() {
   const createExpense = useExpenseStore((state) => state.createExpense);
   const { getRate, convert } = useExchangeRateStore();
   const { hapticEnabled } = useSettingsStore();
+
+  // 입력 플로우 상태
+  const [step, setStep] = useState<InputStep>('select-method');
+  const [receiptImage, setReceiptImage] = useState<ReceiptImage | null>(null);
 
   // 여행 & 방문지 선택
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
@@ -61,6 +92,14 @@ export default function NewExpenseScreen() {
       Haptics.impactAsync(style);
     }
   };
+
+  // 뒤로가기/취소 시 임시 이미지 정리
+  const cleanupAndGoBack = useCallback(async () => {
+    if (receiptImage) {
+      await deleteReceiptImage(receiptImage.uri);
+    }
+    router.back();
+  }, [receiptImage]);
 
   // 초기화
   useEffect(() => {
@@ -96,6 +135,54 @@ export default function NewExpenseScreen() {
   const currencyFlag = getCurrencyFlag(currency);
   const exchangeRate = getRate(currency);
   const amountKRW = amount ? convert(parseFloat(amount), currency) : 0;
+
+  // 입력 방식 선택 핸들러
+  const handleMethodSelect = (method: ExpenseInputMethod) => {
+    triggerHaptic();
+    if (method === 'receipt') {
+      setStep('receipt-options');
+    } else {
+      setStep('manual');
+    }
+  };
+
+  // 영수증 입력 소스 선택 핸들러
+  const handleReceiptSourceSelect = async (source: ReceiptInputSource) => {
+    triggerHaptic();
+    if (source === 'camera') {
+      setStep('camera');
+    } else {
+      // 갤러리 선택
+      const permission = await requestGalleryPermission();
+      if (permission === 'never_ask_again') {
+        setStep('gallery-permission-denied');
+        return;
+      }
+
+      const result = await pickImageFromGallery();
+      if (result.success && result.image) {
+        setReceiptImage(result.image);
+        setStep('receipt-form');
+      } else if (result.error && result.error !== 'CANCELLED') {
+        Alert.alert('오류', getImageErrorMessage(result.error));
+      }
+    }
+  };
+
+  // 카메라 촬영 완료 핸들러
+  const handleCameraCapture = (image: ReceiptImage) => {
+    setReceiptImage(image);
+    setStep('receipt-form');
+  };
+
+  // 다시 촬영/선택 핸들러
+  const handleRetake = async () => {
+    if (receiptImage) {
+      await deleteReceiptImage(receiptImage.uri);
+      setReceiptImage(null);
+    }
+    setStep('receipt-options');
+  };
 
   const handleAmountChange = (text: string) => {
     const cleaned = text.replace(/[^0-9.]/g, '');
@@ -142,6 +229,12 @@ export default function NewExpenseScreen() {
         date: formatDate(date),
         time: formatTimeForApi(time),
       });
+
+      // 저장 성공 시 임시 이미지 삭제
+      if (receiptImage) {
+        await deleteReceiptImage(receiptImage.uri);
+      }
+
       if (hapticEnabled) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
@@ -159,6 +252,7 @@ export default function NewExpenseScreen() {
     return CATEGORIES.find(c => c.id === category) || CATEGORIES[0];
   };
 
+  // 진행 중인 여행이 없을 때
   if (activeTrips.length === 0) {
     return (
       <View style={[styles.emptyContainer, { backgroundColor: colors.background }]}>
@@ -181,6 +275,45 @@ export default function NewExpenseScreen() {
     );
   }
 
+  // Step별 렌더링
+  if (step === 'select-method') {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, padding: spacing.base }]}>
+        <ExpenseInputMethodSelector onSelect={handleMethodSelect} />
+      </View>
+    );
+  }
+
+  if (step === 'receipt-options') {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, padding: spacing.base }]}>
+        <ReceiptInputOptions
+          onSelect={handleReceiptSourceSelect}
+          onBack={() => setStep('select-method')}
+        />
+      </View>
+    );
+  }
+
+  if (step === 'camera') {
+    return (
+      <ReceiptCamera
+        onCapture={handleCameraCapture}
+        onBack={() => setStep('receipt-options')}
+      />
+    );
+  }
+
+  if (step === 'gallery-permission-denied') {
+    return (
+      <PermissionDeniedView
+        type="gallery"
+        onBack={() => setStep('receipt-options')}
+      />
+    );
+  }
+
+  // 지출 입력 폼 (manual 또는 receipt-form)
   return (
     <>
       <KeyboardAvoidingView
@@ -194,12 +327,20 @@ export default function NewExpenseScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* 영수증 미리보기 (영수증 입력 모드일 때만) */}
+          {step === 'receipt-form' && receiptImage && (
+            <ReceiptPreview
+              image={receiptImage}
+              onRetake={handleRetake}
+            />
+          )}
+
           {/* 방문지 선택 */}
           {selectedDestination && (
             <TouchableOpacity
               style={[
                 styles.destinationSelector,
-                { backgroundColor: colors.surface, borderRadius: borderRadius.lg },
+                { backgroundColor: colors.surface, borderRadius: borderRadius.lg, marginTop: step === 'receipt-form' ? spacing.md : 0 },
                 shadows.sm,
               ]}
               onPress={() => destinations.length > 1 && setShowDestinationSelector(true)}
@@ -235,7 +376,7 @@ export default function NewExpenseScreen() {
                 placeholder="0"
                 placeholderTextColor={colors.textTertiary}
                 keyboardType="decimal-pad"
-                autoFocus
+                autoFocus={step === 'manual'}
               />
             </View>
             <View style={[styles.krwRow, { borderTopColor: colors.border }]}>

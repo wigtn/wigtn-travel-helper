@@ -18,7 +18,7 @@ import { useTheme } from '../../lib/theme';
 import { useTripStore } from '../../lib/stores/tripStore';
 import { useExpenseStore } from '../../lib/stores/expenseStore';
 import { useSettingsStore } from '../../lib/stores/settingsStore';
-import { Card, CategoryIcon, EmptyState, CurrencyToggle } from '../../components/ui';
+import { Card, CategoryIcon, EmptyState, CurrencyToggle, CalendarScreenSkeleton } from '../../components/ui';
 import { formatKRW, formatCurrency, getCurrencyFlag } from '../../lib/utils/currency';
 import { getDaysInMonth, getFirstDayOfMonth, formatDate, formatDisplayDate } from '../../lib/utils/date';
 import { CATEGORIES, getCurrencyInfo } from '../../lib/utils/constants';
@@ -33,7 +33,7 @@ const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
 
 export default function CalendarScreen() {
   const { colors, spacing, typography } = useTheme();
-  const { activeTrip, destinations } = useTripStore();
+  const { activeTrip, destinations, isLoading, trips } = useTripStore();
   const { expenses, loadExpenses } = useExpenseStore();
   const { currencyDisplayMode } = useSettingsStore();
   const showInKRW = currencyDisplayMode === 'krw';
@@ -233,6 +233,11 @@ export default function CalendarScreen() {
 
     return rows;
   };
+
+  // 초기 로딩 중일 때 Skeleton 표시
+  if (isLoading && trips.length === 0) {
+    return <CalendarScreenSkeleton />;
+  }
 
   if (!activeTrip) {
     return (

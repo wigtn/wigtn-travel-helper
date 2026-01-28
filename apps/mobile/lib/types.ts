@@ -68,6 +68,9 @@ export interface CurrentLocation {
 // 통화 표시 모드 (PRD FR-007)
 export type CurrencyDisplayMode = 'local' | 'krw';
 
+// 테마 모드
+export type ThemeMode = 'system' | 'light' | 'dark';
+
 // 날짜별 국가 그룹 지출 (PRD FR-008 다중 국가 레이어)
 export interface DayExpenseGroup {
   date: string;
@@ -81,4 +84,31 @@ export interface DayExpenseGroup {
 export interface AppSettings {
   currencyDisplayMode: CurrencyDisplayMode;
   hapticEnabled: boolean;
+  themeMode: ThemeMode;
+}
+
+// 영수증 이미지 (PRD receipt-expense-input)
+export interface ReceiptImage {
+  uri: string;
+  width: number;
+  height: number;
+  type: 'camera' | 'gallery';
+  mimeType?: string;
+  fileSize?: number;
+}
+
+// 지출 입력 방식
+export type ExpenseInputMethod = 'receipt' | 'manual';
+export type ReceiptInputSource = 'camera' | 'gallery';
+
+// 이미지 처리 결과 타입
+export interface ImageCaptureResult {
+  success: boolean;
+  image?: ReceiptImage;
+  error?: 'CAMERA_NOT_READY' | 'CAPTURE_FAILED' | 'PERMISSION_DENIED' | 'FILE_TOO_LARGE' | 'CANCELLED';
+}
+
+// 영수증 첨부 지출 (확장)
+export interface ExpenseWithReceipt extends Omit<Expense, 'id' | 'createdAt'> {
+  receiptImage?: ReceiptImage;
 }
