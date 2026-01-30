@@ -13,15 +13,15 @@ import {
 import { useLocalSearchParams, router, Stack } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useTheme } from '../../lib/theme';
-import { useTripStore } from '../../lib/stores/tripStore';
-import { useExpenseStore } from '../../lib/stores/expenseStore';
-import { useSettingsStore } from '../../lib/stores/settingsStore';
-import { Card, Button, CategoryIcon, CurrencyToggle } from '../../components/ui';
-import { formatKRW, getCurrencyFlag, formatCurrency } from '../../lib/utils/currency';
-import { formatFullDate, getDaysBetween, formatDisplayDate } from '../../lib/utils/date';
-import { CATEGORIES, getCurrencyInfo, getCountryFlag } from '../../lib/utils/constants';
-import { Trip, Destination } from '../../lib/types';
+import { useTheme } from '../../../lib/theme';
+import { useTripStore } from '../../../lib/stores/tripStore';
+import { useExpenseStore } from '../../../lib/stores/expenseStore';
+import { useSettingsStore } from '../../../lib/stores/settingsStore';
+import { Card, Button, CategoryIcon, CurrencyToggle } from '../../../components/ui';
+import { formatKRW, getCurrencyFlag, formatCurrency } from '../../../lib/utils/currency';
+import { formatFullDate, getDaysBetween, formatDisplayDate } from '../../../lib/utils/date';
+import { CATEGORIES, getCurrencyInfo, getCountryFlag } from '../../../lib/utils/constants';
+import { Trip, Destination } from '../../../lib/types';
 
 export default function TripDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

@@ -12,6 +12,9 @@ import { TripMapView } from '../../components/map';
 import { TripCard } from '../../components/home';
 import { Card, EmptyState, HomeScreenSkeleton } from '../../components/ui';
 
+// 앱 실행 중 한 번만 자동 전환 (모듈 레벨 플래그)
+let hasAutoNavigated = false;
+
 export default function GlobalHomeScreen() {
   const { colors, spacing, typography, borderRadius } = useTheme();
   const {
@@ -23,7 +26,6 @@ export default function GlobalHomeScreen() {
   } = useTripStore();
 
   const [refreshing, setRefreshing] = useState(false);
-  const [autoNavigated, setAutoNavigated] = useState(false);
 
   // 여행을 상태별로 분류
   const categorizedTrips = useMemo(() => {
@@ -46,15 +48,15 @@ export default function GlobalHomeScreen() {
     return { active, upcoming, past };
   }, [trips]);
 
-  // 앱 실행 시 자동 여행 모드 전환 (1회만)
+  // 앱 실행 시 자동 여행 모드 전환 (앱 실행 중 1회만)
   useEffect(() => {
-    if (!autoNavigated && !isLoading && categorizedTrips.active.length > 0) {
+    if (!hasAutoNavigated && !isLoading && categorizedTrips.active.length > 0) {
       const activeTrip = categorizedTrips.active[0];
-      setAutoNavigated(true);
+      hasAutoNavigated = true;
       // 자동 전환 - 여행 메인 화면으로 이동
       router.replace(`/trip/${activeTrip.id}/main`);
     }
-  }, [autoNavigated, isLoading, categorizedTrips.active]);
+  }, [isLoading, categorizedTrips.active]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

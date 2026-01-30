@@ -176,39 +176,10 @@ export default function RootLayout() {
           }}
         />
         <Stack.Screen
-          name="expense/[id]"
-          options={{
-            title: "지출 수정",
-            presentation: "modal",
-            headerLeft: () => (
-              <TouchableOpacity
-                onPress={() => navigation.back()}
-                style={{
-                  padding: 4,
-                }}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <MaterialIcons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            ),
-          }}
-        />
-        <Stack.Screen
           name="calculator"
           options={{
-            title: "계산기",
+            headerShown: false,
             presentation: "modal",
-            headerLeft: () => (
-              <TouchableOpacity
-                onPress={() => navigation.back()}
-                style={{
-                  padding: 4,
-                }}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <MaterialIcons name="close" size={24} color={colors.text} />
-              </TouchableOpacity>
-            ),
           }}
         />
       </Stack>

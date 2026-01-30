@@ -17,15 +17,15 @@ import { useLocalSearchParams, router, Stack } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useTheme } from '../../lib/theme';
-import { useExpenseStore } from '../../lib/stores/expenseStore';
-import { useExchangeRateStore } from '../../lib/stores/exchangeRateStore';
-import { useSettingsStore } from '../../lib/stores/settingsStore';
-import { Button, Card, BottomSheet, CategoryIcon } from '../../components/ui';
-import { CATEGORIES, Category } from '../../lib/utils/constants';
-import { formatKRW, getCurrencySymbol, formatCurrency } from '../../lib/utils/currency';
-import { formatDate, formatFullDate, formatTime, formatTimeForApi } from '../../lib/utils/date';
-import { Expense } from '../../lib/types';
+import { useTheme } from '../../../lib/theme';
+import { useExpenseStore } from '../../../lib/stores/expenseStore';
+import { useExchangeRateStore } from '../../../lib/stores/exchangeRateStore';
+import { useSettingsStore } from '../../../lib/stores/settingsStore';
+import { Button, Card, BottomSheet, CategoryIcon } from '../../../components/ui';
+import { CATEGORIES, Category } from '../../../lib/utils/constants';
+import { formatKRW, getCurrencySymbol, formatCurrency } from '../../../lib/utils/currency';
+import { formatDate, formatFullDate, formatTime, formatTimeForApi } from '../../../lib/utils/date';
+import { Expense } from '../../../lib/types';
 
 export default function EditExpenseScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

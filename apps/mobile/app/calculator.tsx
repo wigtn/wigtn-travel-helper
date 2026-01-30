@@ -7,25 +7,31 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
+  Dimensions,
 } from 'react-native';
-import { router, Stack } from 'expo-router';
+import { router } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../lib/theme';
 import { useTripStore } from '../lib/stores/tripStore';
 import { useExchangeRateStore } from '../lib/stores/exchangeRateStore';
 import { useSettingsStore } from '../lib/stores/settingsStore';
-import { formatKRW, getCurrencySymbol, formatCurrency } from '../lib/utils/currency';
+import { formatKRW, getCurrencySymbol } from '../lib/utils/currency';
 import { getCountryFlag, getCurrencyInfo } from '../lib/utils/constants';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const BUTTON_GAP = 8;
+const BUTTON_SIZE = (SCREEN_WIDTH - 32 - BUTTON_GAP * 3) / 4;
 
 type Operator = '+' | '-' | '×' | '÷' | null;
 
 export default function CalculatorScreen() {
+  const insets = useSafeAreaInsets();
   const { colors, spacing, typography, borderRadius } = useTheme();
   const { activeTrip, destinations } = useTripStore();
-  const { convert, getRate } = useExchangeRateStore();
+  const { convert } = useExchangeRateStore();
   const { hapticEnabled } = useSettingsStore();
 
   // Get available currencies from trip destinations
@@ -72,7 +78,6 @@ export default function CalculatorScreen() {
     const num = parseFloat(value);
     if (isNaN(num)) return '0';
 
-    // Check if has decimal
     const parts = value.split('.');
     if (parts.length === 2) {
       const intPart = parseInt(parts[0]).toLocaleString();
@@ -88,9 +93,7 @@ export default function CalculatorScreen() {
       setDisplay(digit);
       setWaitingForOperand(false);
     } else {
-      // Remove commas for calculation
       const currentValue = display.replace(/,/g, '');
-      // Prevent leading zeros
       if (currentValue === '0' && digit !== '.') {
         setDisplay(digit);
       } else if (currentValue.length < 12) {
@@ -194,12 +197,12 @@ export default function CalculatorScreen() {
     label,
     onPress,
     variant = 'number',
-    flex = 1,
+    wide = false,
   }: {
     label: string;
     onPress: () => void;
     variant?: 'number' | 'operator' | 'function' | 'equals';
-    flex?: number;
+    wide?: boolean;
   }) => {
     const getButtonStyle = () => {
       switch (variant) {
@@ -219,8 +222,6 @@ export default function CalculatorScreen() {
         case 'operator':
         case 'equals':
           return 'white';
-        case 'function':
-          return colors.text;
         default:
           return colors.text;
       }
@@ -231,7 +232,11 @@ export default function CalculatorScreen() {
         style={[
           styles.button,
           getButtonStyle(),
-          { borderRadius: borderRadius.md, flex },
+          {
+            borderRadius: borderRadius.md,
+            width: wide ? BUTTON_SIZE * 2 + BUTTON_GAP : BUTTON_SIZE,
+            height: BUTTON_SIZE * 0.7,
+          },
         ]}
         onPress={onPress}
         activeOpacity={0.7}
@@ -248,24 +253,21 @@ export default function CalculatorScreen() {
   const currencySymbol = getCurrencySymbol(selectedCurrency);
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          title: '계산기',
-          presentation: 'modal',
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={{ padding: 4 }}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <MaterialIcons name="close" size={24} color={colors.text} />
-            </TouchableOpacity>
-          ),
-        }}
-      />
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      {/* 커스텀 헤더 */}
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.headerButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <MaterialIcons name="close" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={[typography.titleMedium, { color: colors.text }]}>계산기</Text>
+        <View style={styles.headerButton} />
+      </View>
 
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={styles.content}>
         {/* Currency Selector */}
         <TouchableOpacity
           style={[styles.currencySelector, { backgroundColor: colors.surface, borderRadius: borderRadius.md }]}
@@ -295,7 +297,7 @@ export default function CalculatorScreen() {
         {/* Currency Picker Dropdown */}
         {showCurrencyPicker && (
           <View style={[styles.currencyPicker, { backgroundColor: colors.surface, borderRadius: borderRadius.md }]}>
-            <ScrollView style={{ maxHeight: 200 }}>
+            <ScrollView style={{ maxHeight: 150 }} showsVerticalScrollIndicator={false}>
               {availableCurrencies.map((currency) => {
                 const info = getCurrencyInfo(currency);
                 const isSelected = currency === selectedCurrency;
@@ -350,7 +352,7 @@ export default function CalculatorScreen() {
           {/* Row 1 */}
           <View style={styles.row}>
             <CalcButton label="AC" onPress={handleClear} variant="function" />
-            <CalcButton label="DEL" onPress={handleDelete} variant="function" />
+            <CalcButton label="⌫" onPress={handleDelete} variant="function" />
             <CalcButton label="%" onPress={handlePercent} variant="function" />
             <CalcButton label="÷" onPress={() => performOperation('÷')} variant="operator" />
           </View>
@@ -381,18 +383,35 @@ export default function CalculatorScreen() {
 
           {/* Row 5 */}
           <View style={styles.row}>
-            <CalcButton label="0" onPress={() => inputDigit('0')} flex={2} />
+            <CalcButton label="0" onPress={() => inputDigit('0')} wide />
             <CalcButton label="." onPress={inputDecimal} />
             <CalcButton label="=" onPress={handleEquals} variant="equals" />
           </View>
         </View>
-      </SafeAreaView>
-    </>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  headerButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  content: {
     flex: 1,
     padding: 16,
   },
@@ -424,31 +443,31 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   displayText: {
-    fontSize: 42,
+    fontSize: 40,
     fontWeight: '300',
     fontVariant: ['tabular-nums'],
   },
   krwText: {
-    fontSize: 18,
+    fontSize: 16,
     marginTop: 8,
   },
   keypad: {
     flex: 1,
     justifyContent: 'flex-end',
-    gap: 10,
+    gap: BUTTON_GAP,
+    paddingBottom: 16,
   },
   row: {
     flexDirection: 'row',
-    gap: 10,
+    justifyContent: 'center',
+    gap: BUTTON_GAP,
   },
   button: {
-    aspectRatio: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: 64,
   },
   buttonText: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '500',
   },
 });

@@ -1,9 +1,24 @@
 // Main Screen Revamp - 지도 핀 마커 컴포넌트
 // PRD FR-103, FR-104: 여행 목적지 핀 + 상태별 색상
+// Expo Go 호환: react-native-maps 사용 불가 시 null 반환
 
 import { StyleSheet, View, Text } from 'react-native';
-import { Marker, Callout } from 'react-native-maps';
 import { TripStatus } from '../../lib/types';
+
+// Check if react-native-maps is available
+let MarkerComponent: any = null;
+let CalloutComponent: any = null;
+let isMapAvailable = false;
+
+try {
+  const Maps = require('react-native-maps');
+  MarkerComponent = Maps.Marker;
+  CalloutComponent = Maps.Callout;
+  isMapAvailable = true;
+} catch (e) {
+  // react-native-maps not available (Expo Go)
+  isMapAvailable = false;
+}
 
 // 핀 색상 규칙 (PRD Appendix C)
 const PIN_COLORS: Record<TripStatus, string> = {
@@ -29,21 +44,26 @@ export function TripMarker({
   countryFlag,
   onPress,
 }: TripMarkerProps) {
+  // Return null if maps not available (Expo Go)
+  if (!isMapAvailable || !MarkerComponent || !CalloutComponent) {
+    return null;
+  }
+
   const pinColor = PIN_COLORS[status];
 
   return (
-    <Marker
+    <MarkerComponent
       coordinate={{ latitude, longitude }}
       pinColor={pinColor}
       onPress={onPress}
     >
-      <Callout tooltip>
+      <CalloutComponent tooltip>
         <View style={styles.calloutContainer}>
           {countryFlag && <Text style={styles.flag}>{countryFlag}</Text>}
           <Text style={styles.title}>{title}</Text>
         </View>
-      </Callout>
-    </Marker>
+      </CalloutComponent>
+    </MarkerComponent>
   );
 }
 

@@ -1,5 +1,5 @@
 // Trip Main Screen - Main Screen Revamp
-// PRD FR-201~FR-409: 여행 메인 화면 + 계산기 FAB
+// PRD FR-201~FR-409: 여행 메인 화면 + 커스텀 헤더 + 하단바
 
 import { useEffect, useState, useMemo } from 'react';
 import {
@@ -9,10 +9,15 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Modal,
+  Pressable,
+  Animated,
+  Alert,
 } from 'react-native';
-import { useLocalSearchParams, router, Stack } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/theme';
 import { useTripStore } from '../../../lib/stores/tripStore';
 import { useExpenseStore } from '../../../lib/stores/expenseStore';
@@ -22,10 +27,16 @@ import { BudgetSummaryCard, TodayExpenseTable } from '../../../components/trip';
 import { formatDisplayDate, getDaysBetween } from '../../../lib/utils/date';
 import { getCountryFlag } from '../../../lib/utils/constants';
 import { getTripStatus } from '../../../lib/types';
+import {
+  pickImageFromGallery,
+  requestGalleryPermission,
+  getImageErrorMessage,
+} from '../../../lib/utils/image';
 
 export default function TripMainScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { colors, spacing, typography, borderRadius } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { colors, spacing, typography, borderRadius, shadows } = useTheme();
   const { trips, destinations, loadDestinations, setActiveTrip } = useTripStore();
   const { expenses, loadExpenses, getStats } = useExpenseStore();
   const { hapticEnabled, currencyDisplayMode } = useSettingsStore();
@@ -33,6 +44,11 @@ export default function TripMainScreen() {
 
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+
+  // FAB Menu states
+  const [showFabMenu, setShowFabMenu] = useState(false);
+  const [showReceiptOptions, setShowReceiptOptions] = useState(false);
+  const [fabRotation] = useState(new Animated.Value(0));
 
   const trip = trips.find((t) => t.id === id) || null;
   const tripDestinations = destinations.filter((d) => d.tripId === id);
@@ -74,11 +90,9 @@ export default function TripMainScreen() {
     }
   }, [id]);
 
-  // Reset to today when trip changes
   useEffect(() => {
     if (trip) {
       const today = new Date().toISOString().split('T')[0];
-      // Clamp to trip date range
       if (today >= trip.startDate && today <= trip.endDate) {
         setSelectedDate(today);
       } else if (today < trip.startDate) {
@@ -98,10 +112,72 @@ export default function TripMainScreen() {
     setRefreshing(false);
   };
 
-  const handleAddExpense = () => {
+  const triggerHaptic = (style: Haptics.ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle.Light) => {
+    if (hapticEnabled) {
+      Haptics.impactAsync(style);
+    }
+  };
+
+  // FAB Menu handlers
+  const toggleFabMenu = () => {
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    const toValue = showFabMenu ? 0 : 1;
+    Animated.spring(fabRotation, {
+      toValue,
+      useNativeDriver: true,
+      tension: 100,
+      friction: 10,
+    }).start();
+    setShowFabMenu(!showFabMenu);
+  };
+
+  const closeFabMenu = () => {
+    Animated.spring(fabRotation, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 100,
+      friction: 10,
+    }).start();
+    setShowFabMenu(false);
+  };
+
+  const handleManualInput = () => {
+    triggerHaptic();
+    closeFabMenu();
     if (trip) {
       setActiveTrip(trip);
-      router.push('/expense/new');
+      router.push('/expense/new?mode=manual');
+    }
+  };
+
+  const handleReceiptInput = () => {
+    triggerHaptic();
+    closeFabMenu();
+    setShowReceiptOptions(true);
+  };
+
+  const handleCameraInput = () => {
+    triggerHaptic();
+    setShowReceiptOptions(false);
+    if (trip) {
+      setActiveTrip(trip);
+      router.push('/expense/new?mode=receipt&source=camera');
+    }
+  };
+
+  const handleGalleryInput = async () => {
+    triggerHaptic();
+    setShowReceiptOptions(false);
+
+    const permission = await requestGalleryPermission();
+    if (permission === 'never_ask_again') {
+      Alert.alert('권한 필요', '설정에서 사진 접근 권한을 허용해주세요.');
+      return;
+    }
+
+    if (trip) {
+      setActiveTrip(trip);
+      router.push('/expense/new?mode=receipt&source=gallery');
     }
   };
 
@@ -122,15 +198,19 @@ export default function TripMainScreen() {
     setSelectedDate(date);
   };
 
-  const triggerHaptic = () => {
-    if (hapticEnabled) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
+  const handleBack = () => {
+    triggerHaptic();
+    router.replace('/(tabs)');
   };
+
+  const fabRotateInterpolate = fabRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '45deg'],
+  });
 
   if (!trip) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
         <Text style={[typography.bodyMedium, { color: colors.textSecondary, textAlign: 'center', marginTop: 40 }]}>
           여행을 찾을 수 없습니다
         </Text>
@@ -139,151 +219,222 @@ export default function TripMainScreen() {
   }
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          title: '',
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => {
-                triggerHaptic();
-                router.replace('/(tabs)');
-              }}
-              style={styles.headerButton}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessibilityLabel="홈으로 이동"
-            >
-              <MaterialIcons name="home" size={24} color={colors.text} />
-            </TouchableOpacity>
-          ),
-          headerRight: () => (
-            <View style={styles.headerRightRow}>
-              <CurrencyToggle variant="compact" />
-              <TouchableOpacity
-                onPress={() => router.push(`/trip/${id}`)}
-                style={styles.headerButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                accessibilityLabel="여행 설정"
-              >
-                <MaterialIcons name="settings" size={24} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-          ),
-        }}
-      />
-
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={[styles.content, { padding: spacing.base }]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.primary}
-            />
-          }
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* 커스텀 헤더 */}
+      <View style={[styles.header, { paddingTop: insets.top + 8, backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+        <TouchableOpacity
+          onPress={handleBack}
+          style={styles.headerButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="뒤로가기"
         >
-          {/* Trip Header */}
-          <View style={styles.tripHeader}>
-            <View style={styles.tripTitleRow}>
-              <Text style={styles.flags}>
-                {tripDestinations.map((d) => getCountryFlag(d.country)).join('') || '✈️'}
-              </Text>
-              <View style={styles.tripTitleInfo}>
-                <Text style={[typography.headlineMedium, { color: colors.text }]}>
-                  {trip.name}
-                </Text>
-                <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>
-                  {formatDisplayDate(trip.startDate)} - {formatDisplayDate(trip.endDate)}
-                </Text>
-              </View>
-            </View>
+          <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
 
-            {/* Day Badge */}
-            {tripStatus === 'active' && (
-              <View style={[styles.dayBadge, { backgroundColor: colors.primary }]}>
-                <Text style={[typography.labelLarge, { color: 'white' }]}>
-                  Day {dayInfo.dayIndex} / {dayInfo.totalDays}
-                </Text>
-              </View>
-            )}
-          </View>
+        <View style={styles.headerCenter}>
+          <Text style={[typography.titleMedium, { color: colors.text }]} numberOfLines={1}>
+            {trip.name}
+          </Text>
+        </View>
 
-          {/* Current Destination */}
-          {currentDestination && (
-            <Card style={{ marginTop: spacing.md, padding: spacing.sm }}>
-              <View style={styles.currentDestRow}>
-                <MaterialIcons name="location-on" size={20} color={colors.primary} />
-                <Text style={[typography.labelMedium, { color: colors.textSecondary, marginLeft: 4 }]}>
-                  현재 위치
-                </Text>
-                <Text style={[typography.titleSmall, { color: colors.text, marginLeft: spacing.sm }]}>
-                  {getCountryFlag(currentDestination.country)} {currentDestination.city || currentDestination.country}
-                </Text>
-              </View>
-            </Card>
-          )}
-
-          {/* Budget Summary Card */}
-          <View style={{ marginTop: spacing.md }}>
-            <BudgetSummaryCard
-              budget={trip.budget}
-              totalSpent={stats?.totalKRW || 0}
-            />
-          </View>
-
-          {/* Today's Expenses Table with Date Navigation */}
-          <View style={{ marginTop: spacing.lg }}>
-            <View style={[styles.sectionHeader, { marginBottom: spacing.sm }]}>
-              <View style={styles.sectionTitleRow}>
-                <MaterialIcons name="receipt-long" size={20} color={colors.primary} />
-                <Text style={[typography.titleMedium, { color: colors.text, marginLeft: 8 }]}>
-                  지출 내역
-                </Text>
-              </View>
-            </View>
-
-            <TodayExpenseTable
-              date={selectedDate}
-              expenses={dateExpenses}
-              destinations={tripDestinations}
-              showInKRW={showInKRW}
-              onExpensePress={handleExpensePress}
-              onReceiptPress={handleReceiptPress}
-              onDateChange={handleDateChange}
-              tripStartDate={trip.startDate}
-              tripEndDate={trip.endDate}
-            />
-          </View>
-        </ScrollView>
-
-        {/* FAB Container */}
-        <View style={[styles.fabContainer, { bottom: spacing.xl, right: spacing.base }]}>
-          {/* Calculator FAB */}
+        <View style={styles.headerRight}>
+          <CurrencyToggle variant="compact" />
           <TouchableOpacity
-            style={[
-              styles.fabSecondary,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-            onPress={handleCalculatorPress}
-            accessibilityLabel="계산기 열기"
+            onPress={() => router.push(`/trip/${id}`)}
+            style={styles.headerButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="여행 설정"
           >
-            <MaterialIcons name="calculate" size={24} color={colors.primary} />
-          </TouchableOpacity>
-
-          {/* Add Expense FAB */}
-          <TouchableOpacity
-            style={[styles.fabPrimary, { backgroundColor: colors.primary }]}
-            onPress={handleAddExpense}
-            accessibilityLabel="지출 추가"
-          >
-            <MaterialIcons name="add" size={28} color="white" />
+            <MaterialIcons name="settings" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
       </View>
-    </>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.content, { padding: spacing.base }]}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        {/* Trip Header */}
+        <View style={styles.tripHeader}>
+          <View style={styles.tripTitleRow}>
+            <Text style={styles.flags}>
+              {tripDestinations.map((d) => getCountryFlag(d.country)).join('') || '✈️'}
+            </Text>
+            <View style={styles.tripTitleInfo}>
+              <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>
+                {formatDisplayDate(trip.startDate)} - {formatDisplayDate(trip.endDate)}
+              </Text>
+            </View>
+          </View>
+
+          {tripStatus === 'active' && (
+            <View style={[styles.dayBadge, { backgroundColor: colors.primary }]}>
+              <Text style={[typography.labelLarge, { color: 'white' }]}>
+                Day {dayInfo.dayIndex} / {dayInfo.totalDays}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {currentDestination && (
+          <Card style={{ marginTop: spacing.md, padding: spacing.sm }}>
+            <View style={styles.currentDestRow}>
+              <MaterialIcons name="location-on" size={20} color={colors.primary} />
+              <Text style={[typography.labelMedium, { color: colors.textSecondary, marginLeft: 4 }]}>
+                현재 위치
+              </Text>
+              <Text style={[typography.titleSmall, { color: colors.text, marginLeft: spacing.sm }]}>
+                {getCountryFlag(currentDestination.country)} {currentDestination.city || currentDestination.country}
+              </Text>
+            </View>
+          </Card>
+        )}
+
+        <View style={{ marginTop: spacing.md }}>
+          <BudgetSummaryCard
+            budget={trip.budget}
+            totalSpent={stats?.totalKRW || 0}
+          />
+        </View>
+
+        <View style={{ marginTop: spacing.lg }}>
+          <View style={[styles.sectionHeader, { marginBottom: spacing.sm }]}>
+            <View style={styles.sectionTitleRow}>
+              <MaterialIcons name="receipt-long" size={20} color={colors.primary} />
+              <Text style={[typography.titleMedium, { color: colors.text, marginLeft: 8 }]}>
+                지출 내역
+              </Text>
+            </View>
+          </View>
+
+          <TodayExpenseTable
+            date={selectedDate}
+            expenses={dateExpenses}
+            destinations={tripDestinations}
+            showInKRW={showInKRW}
+            onExpensePress={handleExpensePress}
+            onReceiptPress={handleReceiptPress}
+            onDateChange={handleDateChange}
+            tripStartDate={trip.startDate}
+            tripEndDate={trip.endDate}
+          />
+        </View>
+      </ScrollView>
+
+      {/* 하단 탭바 */}
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 8, backgroundColor: colors.background, borderTopColor: colors.border }]}>
+        <TouchableOpacity style={styles.bottomBarItem} onPress={handleBack}>
+          <MaterialIcons name="home" size={24} color={colors.textSecondary} />
+          <Text style={[typography.labelSmall, { color: colors.textSecondary, marginTop: 2 }]}>홈</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.bottomBarItem} onPress={() => router.push('/(tabs)/calendar')}>
+          <MaterialIcons name="calendar-today" size={24} color={colors.textSecondary} />
+          <Text style={[typography.labelSmall, { color: colors.textSecondary, marginTop: 2 }]}>캘린더</Text>
+        </TouchableOpacity>
+
+        <View style={styles.bottomBarFabSpace} />
+
+        <TouchableOpacity style={styles.bottomBarItem} onPress={() => router.push('/(tabs)/stats')}>
+          <MaterialIcons name="pie-chart" size={24} color={colors.textSecondary} />
+          <Text style={[typography.labelSmall, { color: colors.textSecondary, marginTop: 2 }]}>통계</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.bottomBarItem} onPress={() => router.push('/(tabs)/settings')}>
+          <MaterialIcons name="settings" size={24} color={colors.textSecondary} />
+          <Text style={[typography.labelSmall, { color: colors.textSecondary, marginTop: 2 }]}>설정</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 중앙 FAB 영역 */}
+      <View style={[styles.fabWrapper, { bottom: insets.bottom + 20 }]}>
+        <TouchableOpacity
+          style={[styles.calcFab, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          onPress={handleCalculatorPress}
+        >
+          <MaterialIcons name="calculate" size={22} color={colors.primary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.mainFab, { backgroundColor: colors.primary }]}
+          onPress={toggleFabMenu}
+        >
+          <Animated.View style={{ transform: [{ rotate: fabRotateInterpolate }] }}>
+            <MaterialIcons name="add" size={28} color="white" />
+          </Animated.View>
+        </TouchableOpacity>
+      </View>
+
+      {/* FAB Menu Modal - 지출 추가 옵션 */}
+      <Modal transparent visible={showFabMenu} animationType="none" onRequestClose={closeFabMenu}>
+        <Pressable style={styles.modalOverlay} onPress={closeFabMenu}>
+          <View style={[styles.fabMenuBox, { backgroundColor: colors.background, borderRadius: borderRadius.xl, ...shadows.lg }]}>
+            <TouchableOpacity style={styles.fabMenuItem} onPress={handleManualInput}>
+              <View style={[styles.fabMenuIcon, { backgroundColor: colors.primaryLight }]}>
+                <MaterialIcons name="edit" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.fabMenuText}>
+                <Text style={[typography.titleSmall, { color: colors.text }]}>직접 입력</Text>
+                <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>금액과 카테고리 직접 입력</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={20} color={colors.textTertiary} />
+            </TouchableOpacity>
+
+            <View style={[styles.fabMenuDivider, { backgroundColor: colors.divider }]} />
+
+            <TouchableOpacity style={styles.fabMenuItem} onPress={handleReceiptInput}>
+              <View style={[styles.fabMenuIcon, { backgroundColor: colors.primaryLight }]}>
+                <MaterialIcons name="receipt-long" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.fabMenuText}>
+                <Text style={[typography.titleSmall, { color: colors.text }]}>영수증 촬영</Text>
+                <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>영수증 사진으로 자동 입력</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={20} color={colors.textTertiary} />
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Receipt Options Modal - 카메라/갤러리 선택 */}
+      <Modal transparent visible={showReceiptOptions} animationType="fade" onRequestClose={() => setShowReceiptOptions(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowReceiptOptions(false)}>
+          <View style={[styles.fabMenuBox, { backgroundColor: colors.background, borderRadius: borderRadius.xl, ...shadows.lg }]}>
+            <TouchableOpacity style={styles.fabMenuItem} onPress={handleCameraInput}>
+              <View style={[styles.fabMenuIcon, { backgroundColor: colors.primaryLight }]}>
+                <MaterialIcons name="camera-alt" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.fabMenuText}>
+                <Text style={[typography.titleSmall, { color: colors.text }]}>카메라로 촬영</Text>
+                <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>지금 영수증 사진 찍기</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={20} color={colors.textTertiary} />
+            </TouchableOpacity>
+
+            <View style={[styles.fabMenuDivider, { backgroundColor: colors.divider }]} />
+
+            <TouchableOpacity style={styles.fabMenuItem} onPress={handleGalleryInput}>
+              <View style={[styles.fabMenuIcon, { backgroundColor: colors.primaryLight }]}>
+                <MaterialIcons name="photo-library" size={24} color={colors.primary} />
+              </View>
+              <View style={styles.fabMenuText}>
+                <Text style={[typography.titleSmall, { color: colors.text }]}>갤러리에서 선택</Text>
+                <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>저장된 영수증 사진 불러오기</Text>
+              </View>
+              <MaterialIcons name="chevron-right" size={20} color={colors.textTertiary} />
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
+    </View>
   );
 }
 
@@ -291,22 +442,32 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+  },
+  headerButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   scrollView: {
     flex: 1,
   },
   content: {
     paddingBottom: 120,
-  },
-  headerButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerRightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
   },
   tripHeader: {
     marginBottom: 8,
@@ -342,15 +503,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  fabContainer: {
+  bottomBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+  },
+  bottomBarItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  bottomBarFabSpace: {
+    width: 80,
+  },
+  fabWrapper: {
     position: 'absolute',
+    alignSelf: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  fabSecondary: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  calcFab: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
@@ -360,7 +537,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  fabPrimary: {
+  mainFab: {
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -371,5 +548,37 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  fabMenuBox: {
+    width: '100%',
+    maxWidth: 320,
+    overflow: 'hidden',
+  },
+  fabMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  fabMenuIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fabMenuText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  fabMenuDivider: {
+    height: 1,
+    marginHorizontal: 16,
   },
 });
