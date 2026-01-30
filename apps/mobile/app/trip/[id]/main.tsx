@@ -341,8 +341,6 @@ export default function TripMainScreen() {
           <Text style={[typography.labelSmall, { color: colors.textSecondary, marginTop: 2 }]}>캘린더</Text>
         </TouchableOpacity>
 
-        <View style={styles.bottomBarFabSpace} />
-
         <TouchableOpacity style={styles.bottomBarItem} onPress={() => router.push('/(tabs)/stats')}>
           <MaterialIcons name="pie-chart" size={24} color={colors.textSecondary} />
           <Text style={[typography.labelSmall, { color: colors.textSecondary, marginTop: 2 }]}>통계</Text>
@@ -354,8 +352,8 @@ export default function TripMainScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* 중앙 FAB 영역 */}
-      <View style={[styles.fabWrapper, { bottom: insets.bottom + 20 }]}>
+      {/* 우측 하단 FAB 영역 - 설정 탭 위 */}
+      <View style={[styles.fabWrapper, { bottom: insets.bottom + 70 }]}>
         <TouchableOpacity
           style={[styles.calcFab, { backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={handleCalculatorPress}
@@ -514,13 +512,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 4,
   },
-  bottomBarFabSpace: {
-    width: 80,
-  },
   fabWrapper: {
     position: 'absolute',
-    alignSelf: 'center',
-    flexDirection: 'row',
+    right: 16,
+    flexDirection: 'column',
     alignItems: 'center',
     gap: 12,
   },
