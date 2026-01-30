@@ -41,10 +41,13 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       tripId TEXT NOT NULL,
       country TEXT NOT NULL,
       countryName TEXT,
+      city TEXT,
       currency TEXT NOT NULL,
       startDate TEXT,
       endDate TEXT,
       orderIndex INTEGER DEFAULT 0,
+      latitude REAL,
+      longitude REAL,
       createdAt TEXT NOT NULL,
       -- Sync metadata
       syncStatus TEXT DEFAULT 'synced',
@@ -68,6 +71,8 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
       category TEXT NOT NULL,
       memo TEXT,
       date TEXT NOT NULL,
+      receiptId TEXT,
+      inputMethod TEXT DEFAULT 'manual',
       createdAt TEXT NOT NULL,
       -- Sync metadata
       syncStatus TEXT DEFAULT 'synced',

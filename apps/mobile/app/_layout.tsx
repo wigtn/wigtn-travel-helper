@@ -55,6 +55,9 @@ export default function RootLayout() {
   const loadTripsFromServer = useTripStore(
     (state) => state.loadTripsFromServer,
   );
+  const loadAllDestinations = useTripStore(
+    (state) => state.loadAllDestinations,
+  );
   const activeTrip = useTripStore((state) => state.activeTrip);
   const loadExpensesFromServer = useExpenseStore(
     (state) => state.loadExpensesFromServer,
@@ -92,6 +95,8 @@ export default function RootLayout() {
         await loadRates();
         // Load trips from server (will fallback to local if offline)
         await loadTripsFromServer();
+        // Load all destinations for global home screen map
+        await loadAllDestinations();
       };
       initData();
     }
@@ -149,8 +154,7 @@ export default function RootLayout() {
         <Stack.Screen
           name="trip/[id]"
           options={{
-            title: "",
-            headerBackTitleVisible: false,
+            headerShown: false,
           }}
         />
         <Stack.Screen

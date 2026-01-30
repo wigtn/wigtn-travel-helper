@@ -24,7 +24,20 @@ export interface Destination {
   startDate?: string;       // 해당 지역 방문 시작
   endDate?: string;         // 해당 지역 방문 종료
   orderIndex: number;       // 방문 순서
+  latitude?: number;        // 위도 (지도 핀용)
+  longitude?: number;       // 경도 (지도 핀용)
   createdAt: string;
+}
+
+// 여행 상태 (PRD main-screen-revamp)
+export type TripStatus = 'upcoming' | 'active' | 'past';
+
+// 여행 + 상태 헬퍼
+export function getTripStatus(trip: Trip): TripStatus {
+  const today = new Date().toISOString().split('T')[0];
+  if (today < trip.startDate) return 'upcoming';
+  if (today > trip.endDate) return 'past';
+  return 'active';
 }
 
 // 지출
@@ -40,6 +53,8 @@ export interface Expense {
   memo?: string;
   date: string;             // YYYY-MM-DD
   time?: string;            // HH:MM
+  receiptId?: string;       // 영수증 분석 결과 ID
+  inputMethod?: ExpenseInputMethod; // 입력 방식 (receipt | manual)
   createdAt: string;
 }
 

@@ -23,6 +23,7 @@ interface TripState {
   loadTripsFromServer: () => Promise<void>;
   loadActiveTrips: () => Promise<void>;
   loadDestinations: (tripId: string) => Promise<void>;
+  loadAllDestinations: () => Promise<void>;
   createTrip: (
     trip: Omit<Trip, 'id' | 'createdAt'>,
     destinations?: Omit<Destination, 'id' | 'tripId' | 'createdAt'>[]
@@ -156,6 +157,15 @@ export const useTripStore = create<TripState>((set, get) => ({
       set({ destinations, currentDestination });
     } catch (error) {
       console.error('Failed to load destinations:', error);
+    }
+  },
+
+  loadAllDestinations: async () => {
+    try {
+      const destinations = await queries.getAllDestinations();
+      set({ destinations });
+    } catch (error) {
+      console.error('Failed to load all destinations:', error);
     }
   },
 

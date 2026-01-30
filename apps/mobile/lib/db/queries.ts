@@ -53,6 +53,14 @@ export async function deleteTrip(id: string): Promise<void> {
 
 // ============ DESTINATIONS ============
 
+export async function getAllDestinations(): Promise<Destination[]> {
+  const db = await getDatabase();
+  const result = await db.getAllAsync<Destination>(
+    'SELECT * FROM destinations ORDER BY tripId, orderIndex ASC'
+  );
+  return result;
+}
+
 export async function getDestinationsByTripId(tripId: string): Promise<Destination[]> {
   const db = await getDatabase();
   const result = await db.getAllAsync<Destination>(
