@@ -1,12 +1,15 @@
-import { getExchangeRates, saveExchangeRates } from '../db/queries';
+// Travel Helper v3.0 - Exchange Rate API (In-memory cache only)
+
 import { ExchangeRateCache } from '../types';
 
 // ExchangeRate-API 무료 플랜 사용
-// 실제 사용 시 API 키를 환경변수로 관리해야 합니다
 const API_BASE_URL = 'https://open.er-api.com/v6/latest/KRW';
 
 // 캐시 만료 시간: 24시간
 const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000;
+
+// 인메모리 캐시
+let cachedRates: ExchangeRateCache | null = null;
 
 // 기본 환율 (오프라인 또는 API 실패 시 사용)
 const DEFAULT_RATES: Record<string, number> = {
@@ -24,9 +27,8 @@ const DEFAULT_RATES: Record<string, number> = {
 
 export async function fetchExchangeRates(): Promise<ExchangeRateCache> {
   // 먼저 캐시 확인
-  const cached = await getExchangeRates();
-  if (cached && !isCacheExpired(cached.lastUpdated)) {
-    return cached;
+  if (cachedRates && !isCacheExpired(cachedRates.lastUpdated)) {
+    return cachedRates;
   }
 
   // API 호출
@@ -46,15 +48,15 @@ export async function fetchExchangeRates(): Promise<ExchangeRateCache> {
       lastUpdated: new Date().toISOString(),
     };
 
-    // 캐시에 저장
-    await saveExchangeRates(newCache);
+    // 인메모리 캐시에 저장
+    cachedRates = newCache;
     return newCache;
   } catch (error) {
     console.error('Failed to fetch exchange rates:', error);
 
     // 캐시된 값이 있으면 만료되어도 사용
-    if (cached) {
-      return cached;
+    if (cachedRates) {
+      return cachedRates;
     }
 
     // 기본 환율 반환

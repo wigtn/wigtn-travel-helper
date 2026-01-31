@@ -1,34 +1,27 @@
-// Travel Helper v2.0 - Expense Store (API-first with offline support)
+// Travel Helper v3.0 - Expense Store (Server-only)
 
 import { create } from 'zustand';
-import { generateId } from '../utils/uuid';
 import { Expense, ExpenseStats, Destination, DayExpenseGroup } from '../types';
 import { Category } from '../utils/constants';
-import * as queries from '../db/queries';
 import { expenseApi, CreateExpenseDto } from '../api/expense';
-import { networkService } from '../services/networkService';
 
 interface ExpenseState {
   expenses: Expense[];
   isLoading: boolean;
+  error: string | null;
 
   // 액션들
   loadExpenses: (tripId: string) => Promise<void>;
-  loadExpensesFromServer: (tripId: string) => Promise<void>;
   createExpense: (expense: Omit<Expense, 'id' | 'createdAt'>) => Promise<Expense>;
   updateExpense: (expense: Expense) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
-  getExpenseById: (id: string) => Promise<Expense | null>;
+  getExpenseById: (id: string) => Expense | null;
+  clearError: () => void;
 
-  // 통계
+  // 통계 (메모리 기반)
   getStats: (tripId: string) => ExpenseStats;
-  getTotalByTrip: (tripId: string) => Promise<number>;
-  getTodayTotal: (
-    tripId: string
-  ) => Promise<{ totalKRW: number; byCurrency: Record<string, number> }>;
-  getExpensesByCurrency: (
-    tripId: string
-  ) => Promise<Record<string, { amount: number; amountKRW: number }>>;
+  getTotalByTrip: (tripId: string) => number;
+  getTodayTotal: (tripId: string) => { totalKRW: number; byCurrency: Record<string, number> };
 
   // 다중 국가 레이어 (FR-008)
   getExpensesByDateGrouped: (
@@ -41,179 +34,130 @@ interface ExpenseState {
 export const useExpenseStore = create<ExpenseState>((set, get) => ({
   expenses: [],
   isLoading: false,
+  error: null,
 
-  // Load expenses from local DB
   loadExpenses: async (tripId) => {
-    set({ isLoading: true });
-    try {
-      const expenses = await queries.getExpensesByTripId(tripId);
-      set({ expenses, isLoading: false });
-    } catch (error) {
-      console.error('Failed to load expenses:', error);
-      set({ isLoading: false });
-    }
-  },
-
-  // Load expenses from server and save to local DB
-  loadExpensesFromServer: async (tripId) => {
-    if (!networkService.getIsConnected()) {
-      return get().loadExpenses(tripId);
-    }
-
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
     try {
       const { data } = await expenseApi.getByTrip(tripId);
 
       // Convert server response to local type
-      // Server uses expenseDate/expenseTime, client uses date/time
-      const expenses: Expense[] = data.map((e: any) => ({
-        id: e.id,
-        tripId: e.tripId,
-        destinationId: e.destinationId,
-        amount: Number(e.amount),
-        currency: e.currency,
-        amountKRW: Number(e.amountKRW),
-        exchangeRate: Number(e.exchangeRate),
-        category: e.category,
-        memo: e.memo,
-        date: e.expenseDate
-          ? new Date(e.expenseDate).toISOString().split('T')[0]
-          : e.date,
-        time: e.expenseTime
-          ? new Date(e.expenseTime).toISOString().split('T')[1].slice(0, 5)
-          : e.time,
-        createdAt: e.createdAt,
-      }));
+      const expenses: Expense[] = data.map((e: any) => {
+        // 날짜 파싱 - 로컬 타임존 기준
+        let dateStr = e.date;
+        if (e.expenseDate) {
+          const d = new Date(e.expenseDate);
+          dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
 
-      // Upsert to local DB
-      for (const expense of expenses) {
-        await queries.upsertExpense(expense);
-      }
+        // 시간 파싱
+        let timeStr = e.time;
+        if (e.expenseTime) {
+          const t = new Date(e.expenseTime);
+          timeStr = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+        }
+
+        return {
+          id: e.id,
+          tripId: e.tripId,
+          destinationId: e.destinationId,
+          amount: Number(e.amount),
+          currency: e.currency,
+          amountKRW: Number(e.amountKRW),
+          exchangeRate: Number(e.exchangeRate),
+          category: e.category,
+          memo: e.memo,
+          date: dateStr,
+          time: timeStr,
+          createdAt: e.createdAt,
+        };
+      });
 
       set({ expenses, isLoading: false });
     } catch (error) {
-      console.error('Failed to load expenses from server:', error);
-      await get().loadExpenses(tripId);
+      const message = error instanceof Error ? error.message : '지출 내역을 불러오는데 실패했습니다';
+      console.error('Failed to load expenses:', error);
+      set({ isLoading: false, error: message });
     }
   },
 
   createExpense: async (expenseData) => {
-    const isOnline = networkService.getIsConnected();
-    const expenseId = generateId();
-    const now = new Date().toISOString();
-
-    const expense: Expense = {
-      ...expenseData,
-      id: expenseId,
-      createdAt: now,
+    const dto: CreateExpenseDto = {
+      destinationId: expenseData.destinationId,
+      amount: expenseData.amount,
+      currency: expenseData.currency,
+      exchangeRate: expenseData.exchangeRate,
+      amountKRW: expenseData.amountKRW,
+      category: expenseData.category,
+      memo: expenseData.memo,
+      expenseDate: expenseData.date,
+      expenseTime: expenseData.time,
     };
 
-    if (isOnline) {
-      try {
-        const dto: CreateExpenseDto = {
-          destinationId: expenseData.destinationId,
-          amount: expenseData.amount,
-          currency: expenseData.currency,
-          exchangeRate: expenseData.exchangeRate,
-          amountKRW: expenseData.amountKRW,
-          category: expenseData.category,
-          memo: expenseData.memo,
-          expenseDate: expenseData.date,
-          expenseTime: expenseData.time,
-        };
+    const { data } = await expenseApi.create(expenseData.tripId, dto);
 
-        const { data } = await expenseApi.create(expenseData.tripId, dto);
-
-        // Use server-generated ID
-        expense.id = data.id;
-        expense.createdAt = data.createdAt;
-      } catch (error) {
-        console.error('Failed to create expense on server:', error);
-        // Queue for later sync
-        await queries.addToSyncQueue(
-          'expense',
-          expense.id,
-          'create',
-          expense as unknown as Record<string, unknown>
-        );
-      }
-    } else {
-      await queries.addToSyncQueue(
-        'expense',
-        expense.id,
-        'create',
-        expense as unknown as Record<string, unknown>
-      );
+    // 날짜/시간 파싱
+    let dateStr = expenseData.date;
+    if (data.expenseDate) {
+      const d = new Date(data.expenseDate);
+      dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
 
-    await queries.createExpense(expense);
+    let timeStr = expenseData.time;
+    if (data.expenseTime) {
+      const t = new Date(data.expenseTime);
+      timeStr = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+    }
+
+    const expense: Expense = {
+      id: data.id,
+      tripId: expenseData.tripId,
+      destinationId: expenseData.destinationId,
+      amount: Number(data.amount),
+      currency: data.currency,
+      amountKRW: Number(data.amountKRW),
+      exchangeRate: Number(data.exchangeRate),
+      category: data.category,
+      memo: data.memo,
+      date: dateStr,
+      time: timeStr,
+      createdAt: data.createdAt,
+    };
+
     set((state) => ({ expenses: [expense, ...state.expenses] }));
     return expense;
   },
 
   updateExpense: async (expense) => {
-    const isOnline = networkService.getIsConnected();
+    await expenseApi.update(expense.id, {
+      destinationId: expense.destinationId,
+      amount: expense.amount,
+      currency: expense.currency,
+      exchangeRate: expense.exchangeRate,
+      amountKRW: expense.amountKRW,
+      category: expense.category,
+      memo: expense.memo,
+      expenseDate: expense.date,
+      expenseTime: expense.time,
+    });
 
-    if (isOnline) {
-      try {
-        await expenseApi.update(expense.id, {
-          destinationId: expense.destinationId,
-          amount: expense.amount,
-          currency: expense.currency,
-          exchangeRate: expense.exchangeRate,
-          amountKRW: expense.amountKRW,
-          category: expense.category,
-          memo: expense.memo,
-          expenseDate: expense.date,
-          expenseTime: expense.time,
-        });
-      } catch (error) {
-        console.error('Failed to update expense on server:', error);
-        await queries.addToSyncQueue(
-          'expense',
-          expense.id,
-          'update',
-          expense as unknown as Record<string, unknown>
-        );
-      }
-    } else {
-      await queries.addToSyncQueue(
-        'expense',
-        expense.id,
-        'update',
-        expense as unknown as Record<string, unknown>
-      );
-    }
-
-    await queries.updateExpense(expense);
     set((state) => ({
       expenses: state.expenses.map((e) => (e.id === expense.id ? expense : e)),
     }));
   },
 
   deleteExpense: async (id) => {
-    const isOnline = networkService.getIsConnected();
-
-    if (isOnline) {
-      try {
-        await expenseApi.delete(id);
-      } catch (error) {
-        console.error('Failed to delete expense on server:', error);
-        await queries.addToSyncQueue('expense', id, 'delete', { id });
-      }
-    } else {
-      await queries.addToSyncQueue('expense', id, 'delete', { id });
-    }
-
-    await queries.deleteExpense(id);
+    await expenseApi.delete(id);
     set((state) => ({
       expenses: state.expenses.filter((e) => e.id !== id),
     }));
   },
 
-  getExpenseById: async (id) => {
-    return await queries.getExpenseById(id);
+  getExpenseById: (id) => {
+    return get().expenses.find((e) => e.id === id) || null;
   },
+
+  clearError: () => set({ error: null }),
 
   getStats: (tripId) => {
     const expenses = get().expenses.filter((e) => e.tripId === tripId);
@@ -259,16 +203,28 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     return stats;
   },
 
-  getTotalByTrip: async (tripId) => {
-    return await queries.getTotalExpenseByTrip(tripId);
+  getTotalByTrip: (tripId) => {
+    const expenses = get().expenses.filter((e) => e.tripId === tripId);
+    return expenses.reduce((sum, e) => sum + e.amountKRW, 0);
   },
 
-  getTodayTotal: async (tripId) => {
-    return await queries.getTodayExpenseByTrip(tripId);
-  },
+  getTodayTotal: (tripId) => {
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-  getExpensesByCurrency: async (tripId) => {
-    return await queries.getExpensesByCurrency(tripId);
+    const todayExpenses = get().expenses.filter(
+      (e) => e.tripId === tripId && e.date === todayStr
+    );
+
+    const byCurrency: Record<string, number> = {};
+    let totalKRW = 0;
+
+    for (const expense of todayExpenses) {
+      byCurrency[expense.currency] = (byCurrency[expense.currency] || 0) + expense.amount;
+      totalKRW += expense.amountKRW;
+    }
+
+    return { totalKRW, byCurrency };
   },
 
   // PRD FR-008: 특정 날짜의 지출을 국가별로 그룹화
@@ -311,3 +267,8 @@ export const useExpenseStore = create<ExpenseState>((set, get) => ({
     );
   },
 }));
+
+// 하위 호환성을 위한 alias (loadExpensesFromServer -> loadExpenses)
+// 기존 코드에서 loadExpensesFromServer를 호출하는 곳이 있을 수 있음
+export const loadExpensesFromServer = (tripId: string) =>
+  useExpenseStore.getState().loadExpenses(tripId);

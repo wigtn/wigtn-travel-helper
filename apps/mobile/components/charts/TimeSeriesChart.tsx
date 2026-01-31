@@ -9,7 +9,7 @@ import { formatKRW } from '../../lib/utils/currency';
 
 interface TimeSeriesData {
   date: string; // YYYY-MM-DD
-  amount: number; // KRW
+  amount: number; // Amount in display currency
 }
 
 interface TimeSeriesChartProps {

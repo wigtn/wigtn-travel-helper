@@ -1,6 +1,7 @@
 // Main Screen Revamp - Today's Expense Table with Date Navigation
 // PRD FR-303~307: 테이블 형식 지출 + 영수증 아이콘
 
+import { useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../../lib/theme';
@@ -33,53 +34,57 @@ export function TodayExpenseTable({
   tripStartDate,
   tripEndDate,
 }: TodayExpenseTableProps) {
-  const { colors, spacing, typography, borderRadius } = useTheme();
+  const { colors, spacing, typography } = useTheme();
 
-  // Calculate totals
-  const totalLocal: Record<string, number> = {};
-  let totalKRW = 0;
+  // Calculate totals (memoized)
+  const { totalLocal, totalKRW } = useMemo(() => {
+    const local: Record<string, number> = {};
+    let krw = 0;
 
-  for (const expense of expenses) {
-    totalLocal[expense.currency] = (totalLocal[expense.currency] || 0) + expense.amount;
-    totalKRW += expense.amountKRW;
-  }
+    for (const expense of expenses) {
+      local[expense.currency] = (local[expense.currency] || 0) + expense.amount;
+      krw += expense.amountKRW;
+    }
 
-  // Date navigation helpers
-  const today = new Date().toISOString().split('T')[0];
+    return { totalLocal: local, totalKRW: krw };
+  }, [expenses]);
+
+  // Date navigation helpers (memoized)
+  const today = useMemo(() => new Date().toISOString().split('T')[0], []);
   const isToday = date === today;
   const canGoBack = date > tripStartDate;
   const canGoForward = date < tripEndDate;
 
-  const goToPrevDay = () => {
+  const goToPrevDay = useCallback(() => {
     const prevDate = new Date(date);
     prevDate.setDate(prevDate.getDate() - 1);
     const newDate = prevDate.toISOString().split('T')[0];
     if (newDate >= tripStartDate) {
       onDateChange?.(newDate);
     }
-  };
+  }, [date, tripStartDate, onDateChange]);
 
-  const goToNextDay = () => {
+  const goToNextDay = useCallback(() => {
     const nextDate = new Date(date);
     nextDate.setDate(nextDate.getDate() + 1);
     const newDate = nextDate.toISOString().split('T')[0];
     if (newDate <= tripEndDate) {
       onDateChange?.(newDate);
     }
-  };
+  }, [date, tripEndDate, onDateChange]);
 
-  const goToToday = () => {
+  const goToToday = useCallback(() => {
     if (today >= tripStartDate && today <= tripEndDate) {
       onDateChange?.(today);
     }
-  };
+  }, [today, tripStartDate, tripEndDate, onDateChange]);
 
-  const formatAmount = (expense: Expense) => {
+  const formatAmount = useCallback((expense: Expense) => {
     if (showInKRW) {
       return formatKRW(expense.amountKRW);
     }
     return formatCurrency(expense.amount, expense.currency);
-  };
+  }, [showInKRW]);
 
   return (
     <View>

@@ -48,26 +48,23 @@ export default function RootLayout() {
   } = useAuthStore();
 
   // Sync state
-  const { initialize: initSync, sync } = useSyncStore();
+  const { initialize: initSync } = useSyncStore();
 
   // Data stores
   const loadRates = useExchangeRateStore((state) => state.loadRates);
-  const loadTripsFromServer = useTripStore(
-    (state) => state.loadTripsFromServer,
-  );
+  const loadTrips = useTripStore((state) => state.loadTrips);
   const loadAllDestinations = useTripStore(
     (state) => state.loadAllDestinations,
   );
   const activeTrip = useTripStore((state) => state.activeTrip);
-  const loadExpensesFromServer = useExpenseStore(
-    (state) => state.loadExpensesFromServer,
-  );
+  const loadExpenses = useExpenseStore((state) => state.loadExpenses);
 
-  // Initialize auth on app start
+  // Initialize auth on app start (run once)
   useEffect(() => {
     initAuth();
     // Clean up old receipt cache (24+ hours old)
     cleanupOldReceiptCache();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle auth-based routing
@@ -83,30 +80,36 @@ export default function RootLayout() {
       // Logged in but on auth screen, redirect to main app
       navigation.replace("/(tabs)");
     }
-  }, [isAuthenticated, isInitialized, segments]);
+  }, [isAuthenticated, isInitialized, segments, navigation]);
 
   // Initialize data when authenticated
   useEffect(() => {
-    if (isAuthenticated) {
-      const initData = async () => {
+    if (!isAuthenticated) return;
+
+    const initData = async () => {
+      try {
         // Initialize sync
         await initSync();
         // Load exchange rates
         await loadRates();
-        // Load trips from server (will fallback to local if offline)
-        await loadTripsFromServer();
+        // Load trips from server
+        await loadTrips();
         // Load all destinations for global home screen map
         await loadAllDestinations();
-      };
-      initData();
-    }
+      } catch (error) {
+        console.error('Failed to initialize data:', error);
+      }
+    };
+    initData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
   // Load expenses when active trip changes
   useEffect(() => {
-    if (activeTrip && isAuthenticated) {
-      loadExpensesFromServer(activeTrip.id);
-    }
+    if (!activeTrip?.id || !isAuthenticated) return;
+
+    loadExpenses(activeTrip.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTrip?.id, isAuthenticated]);
 
   // Show splash while initializing

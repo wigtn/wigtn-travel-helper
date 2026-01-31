@@ -6,11 +6,10 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { Trip, TripStatus, Destination } from '../../lib/types';
 import { useTheme } from '../../lib/theme';
 import { formatDisplayDate, getDaysBetween } from '../../lib/utils/date';
-import { getCountryFlag } from '../../lib/utils/constants';
 
 interface TripCardProps {
   trip: Trip;
-  destinations: Destination[];
+  destinations?: Destination[]; // Optional, not used but kept for API compatibility
   status: TripStatus;
   onPress: () => void;
 }
@@ -39,16 +38,8 @@ function getTripDayInfo(trip: Trip, status: TripStatus): string {
   return '완료';
 }
 
-export function TripCard({ trip, destinations, status, onPress }: TripCardProps) {
-  const { colors, spacing, typography, borderRadius } = useTheme();
-
-  // 여행의 목적지 국기들
-  const flags = destinations
-    .filter((d) => d.tripId === trip.id)
-    .map((d) => getCountryFlag(d.country))
-    .filter(Boolean)
-    .slice(0, 4) // 최대 4개
-    .join('');
+export function TripCard({ trip, status, onPress }: TripCardProps) {
+  const { colors, typography, borderRadius } = useTheme();
 
   const dayInfo = getTripDayInfo(trip, status);
   const tripDays = getDaysBetween(trip.startDate, trip.endDate);
@@ -70,9 +61,6 @@ export function TripCard({ trip, destinations, status, onPress }: TripCardProps)
       ]}
     >
       <View style={styles.content}>
-        {/* 국기 아이콘 */}
-        <Text style={styles.flags}>{flags || '✈️'}</Text>
-
         {/* 여행 정보 */}
         <View style={styles.info}>
           <Text
@@ -135,10 +123,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-  },
-  flags: {
-    fontSize: 28,
-    minWidth: 40,
   },
   info: {
     flex: 1,

@@ -48,7 +48,8 @@ export default function CalendarScreen() {
     if (activeTrip) {
       loadExpenses(activeTrip.id);
     }
-  }, [activeTrip]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTrip?.id]);
 
   // 날짜별 지출 그룹화
   const expensesByDate = useMemo(() => {

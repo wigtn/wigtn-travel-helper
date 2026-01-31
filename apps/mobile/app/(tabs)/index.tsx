@@ -7,13 +7,10 @@ import { router } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../../lib/theme';
 import { useTripStore } from '../../lib/stores/tripStore';
-import { Trip, TripStatus, getTripStatus } from '../../lib/types';
+import { Trip, getTripStatus } from '../../lib/types';
 import { TripMapView } from '../../components/map';
 import { TripCard } from '../../components/home';
 import { Card, EmptyState, HomeScreenSkeleton } from '../../components/ui';
-
-// 앱 실행 중 한 번만 자동 전환 (모듈 레벨 플래그)
-let hasAutoNavigated = false;
 
 export default function GlobalHomeScreen() {
   const { colors, spacing, typography, borderRadius } = useTheme();
@@ -23,6 +20,8 @@ export default function GlobalHomeScreen() {
     isLoading,
     loadTrips,
     loadAllDestinations,
+    hasAutoNavigatedToTrip,
+    setHasAutoNavigatedToTrip,
   } = useTripStore();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -50,13 +49,13 @@ export default function GlobalHomeScreen() {
 
   // 앱 실행 시 자동 여행 모드 전환 (앱 실행 중 1회만)
   useEffect(() => {
-    if (!hasAutoNavigated && !isLoading && categorizedTrips.active.length > 0) {
+    if (!hasAutoNavigatedToTrip && !isLoading && categorizedTrips.active.length > 0) {
       const activeTrip = categorizedTrips.active[0];
-      hasAutoNavigated = true;
+      setHasAutoNavigatedToTrip(true);
       // 자동 전환 - 여행 메인 화면으로 이동
       router.replace(`/trip/${activeTrip.id}/main`);
     }
-  }, [isLoading, categorizedTrips.active]);
+  }, [isLoading, categorizedTrips.active, hasAutoNavigatedToTrip, setHasAutoNavigatedToTrip]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

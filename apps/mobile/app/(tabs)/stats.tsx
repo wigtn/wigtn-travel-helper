@@ -30,7 +30,8 @@ export default function StatsScreen() {
     if (activeTrip) {
       loadExpenses(activeTrip.id);
     }
-  }, [activeTrip]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTrip?.id]);
 
   const stats = activeTrip ? getStats(activeTrip.id) : null;
 
@@ -162,13 +163,28 @@ export default function StatsScreen() {
     }));
   }, [sortedCategories, isDark]);
 
-  // 시계열 차트 데이터
+  // 시계열 차트 데이터 (현지통화/원화 모드에 따라 다름)
   const timeSeriesData = useMemo(() => {
-    if (!stats) return [];
+    if (!stats || !expenses) return [];
+
+    // 현지통화 모드이고 단일 통화인 경우 현지통화로 표시
+    if (!showInKRW && !hasMultipleCurrencies) {
+      const byDateLocal: Record<string, number> = {};
+      for (const expense of expenses) {
+        if (expense.currency === mainCurrency) {
+          byDateLocal[expense.date] = (byDateLocal[expense.date] || 0) + expense.amount;
+        }
+      }
+      return Object.entries(byDateLocal)
+        .map(([date, amount]) => ({ date, amount }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+    }
+
+    // 원화 모드 또는 복수 통화인 경우 KRW로 표시
     return Object.entries(stats.byDate)
       .map(([date, amount]) => ({ date, amount }))
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [stats]);
+  }, [stats, expenses, showInKRW, hasMultipleCurrencies, mainCurrency]);
 
   const tabs: { id: TabType; label: string; icon: string }[] = [
     { id: 'category', label: '카테고리', icon: 'category' },

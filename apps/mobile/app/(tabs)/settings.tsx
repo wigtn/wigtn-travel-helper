@@ -39,7 +39,7 @@ export default function SettingsScreen() {
   const { lastUpdated, loadRates } = useExchangeRateStore();
   const { hapticEnabled, setHapticEnabled, currencyDisplayMode, themeMode, setThemeMode } = useSettingsStore();
   const { user, logout, isLoading: isAuthLoading } = useAuthStore();
-  const { status: syncStatus, pendingChanges } = useSyncStore();
+  const { isOnline } = useSyncStore();
 
   // 아코디언 상태
   const [expandedSections, setExpandedSections] = useState<{
@@ -76,25 +76,14 @@ export default function SettingsScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
 
-    if (pendingChanges > 0) {
-      Alert.alert(
-        '로그아웃',
-        `동기화되지 않은 변경사항이 ${pendingChanges}개 있습니다.\n로그아웃하면 이 변경사항이 사라질 수 있습니다.\n\n정말 로그아웃하시겠습니까?`,
-        [
-          { text: '취소', style: 'cancel' },
-          { text: '로그아웃', style: 'destructive', onPress: performLogout },
-        ]
-      );
-    } else {
-      Alert.alert(
-        '로그아웃',
-        '정말 로그아웃하시겠습니까?',
-        [
-          { text: '취소', style: 'cancel' },
-          { text: '로그아웃', style: 'destructive', onPress: performLogout },
-        ]
-      );
-    }
+    Alert.alert(
+      '로그아웃',
+      '정말 로그아웃하시겠습니까?',
+      [
+        { text: '취소', style: 'cancel' },
+        { text: '로그아웃', style: 'destructive', onPress: performLogout },
+      ]
+    );
   };
 
   const performLogout = async () => {
@@ -141,17 +130,9 @@ export default function SettingsScreen() {
                 {user?.email}
               </Text>
             </View>
-            {syncStatus === 'syncing' && (
-              <ActivityIndicator size="small" color={colors.primary} style={{ marginRight: 8 }} />
-            )}
-            {syncStatus === 'offline' && (
+            {!isOnline && (
               <View style={[styles.statusBadge, { backgroundColor: colors.textTertiary, marginRight: 8 }]}>
                 <Text style={styles.statusBadgeText}>오프라인</Text>
-              </View>
-            )}
-            {pendingChanges > 0 && syncStatus !== 'syncing' && (
-              <View style={[styles.statusBadge, { backgroundColor: colors.warning, marginRight: 8 }]}>
-                <Text style={styles.statusBadgeText}>{pendingChanges}개 대기</Text>
               </View>
             )}
           </View>

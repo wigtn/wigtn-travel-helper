@@ -1,8 +1,9 @@
+// Travel Helper v3.0 - Auth Store (Server-only)
+
 import { create } from 'zustand';
 import { authApi, User, AuthResponse } from '../api/auth';
 import { tokenService } from '../services/tokenService';
 import { onAuthExpired, getErrorMessage } from '../api/client';
-import * as queries from '../db/queries';
 
 interface AuthState {
   user: User | null;
@@ -29,7 +30,7 @@ interface AuthState {
   clearError: () => void;
 }
 
-// Handle successful auth - DELETE local data, use server data
+// Handle successful auth
 async function handleAuthSuccess(response: AuthResponse): Promise<User> {
   await tokenService.setTokens(response.tokens);
   await tokenService.setUser({
@@ -37,9 +38,6 @@ async function handleAuthSuccess(response: AuthResponse): Promise<User> {
     email: response.user.email,
     name: response.user.name,
   });
-
-  // DELETE ALL LOCAL DATA (per user requirement)
-  await queries.deleteAllLocalData();
 
   return response.user;
 }
@@ -208,7 +206,6 @@ export const useAuthStore = create<AuthState>((set, get) => {
         }
       } finally {
         await tokenService.clearTokens();
-        await queries.deleteAllLocalData();
         set({ user: null, isAuthenticated: false, error: null });
       }
     },

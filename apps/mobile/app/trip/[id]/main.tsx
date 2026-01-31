@@ -25,13 +25,8 @@ import { useSettingsStore } from '../../../lib/stores/settingsStore';
 import { Card, CurrencyToggle } from '../../../components/ui';
 import { BudgetSummaryCard, TodayExpenseTable } from '../../../components/trip';
 import { formatDisplayDate, getDaysBetween } from '../../../lib/utils/date';
-import { getCountryFlag } from '../../../lib/utils/constants';
 import { getTripStatus } from '../../../lib/types';
-import {
-  pickImageFromGallery,
-  requestGalleryPermission,
-  getImageErrorMessage,
-} from '../../../lib/utils/image';
+import { requestGalleryPermission } from '../../../lib/utils/image';
 
 export default function TripMainScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -88,6 +83,7 @@ export default function TripMainScreen() {
       loadExpenses(id);
       loadDestinations(id);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {
@@ -183,6 +179,9 @@ export default function TripMainScreen() {
 
   const handleCalculatorPress = () => {
     triggerHaptic();
+    if (trip) {
+      setActiveTrip(trip);
+    }
     router.push('/calculator');
   };
 
@@ -237,7 +236,7 @@ export default function TripMainScreen() {
           </Text>
         </View>
 
-        <View style={styles.headerRight}>
+        <View style={[styles.headerRight, { gap: spacing.xs }]}>
           <CurrencyToggle variant="compact" />
           <TouchableOpacity
             onPress={() => router.push(`/trip/${id}`)}
@@ -264,16 +263,9 @@ export default function TripMainScreen() {
       >
         {/* Trip Header */}
         <View style={styles.tripHeader}>
-          <View style={styles.tripTitleRow}>
-            <Text style={styles.flags}>
-              {tripDestinations.map((d) => getCountryFlag(d.country)).join('') || '✈️'}
-            </Text>
-            <View style={styles.tripTitleInfo}>
-              <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>
-                {formatDisplayDate(trip.startDate)} - {formatDisplayDate(trip.endDate)}
-              </Text>
-            </View>
-          </View>
+          <Text style={[typography.bodySmall, { color: colors.textSecondary }]}>
+            {formatDisplayDate(trip.startDate)} - {formatDisplayDate(trip.endDate)}
+          </Text>
 
           {tripStatus === 'active' && (
             <View style={[styles.dayBadge, { backgroundColor: colors.primary }]}>
@@ -292,7 +284,7 @@ export default function TripMainScreen() {
                 현재 위치
               </Text>
               <Text style={[typography.titleSmall, { color: colors.text, marginLeft: spacing.sm }]}>
-                {getCountryFlag(currentDestination.country)} {currentDestination.city || currentDestination.country}
+                {currentDestination.city || currentDestination.country}
               </Text>
             </View>
           </Card>
@@ -372,8 +364,8 @@ export default function TripMainScreen() {
       </View>
 
       {/* FAB Menu Modal - 지출 추가 옵션 */}
-      <Modal transparent visible={showFabMenu} animationType="none" onRequestClose={closeFabMenu}>
-        <Pressable style={styles.modalOverlay} onPress={closeFabMenu}>
+      <Modal transparent visible={showFabMenu} animationType="fade" onRequestClose={closeFabMenu}>
+        <Pressable style={[styles.modalOverlay, styles.fabMenuOverlay, { paddingBottom: insets.bottom + 140 }]} onPress={closeFabMenu}>
           <View style={[styles.fabMenuBox, { backgroundColor: colors.background, borderRadius: borderRadius.xl, ...shadows.lg }]}>
             <TouchableOpacity style={styles.fabMenuItem} onPress={handleManualInput}>
               <View style={[styles.fabMenuIcon, { backgroundColor: colors.primaryLight }]}>
@@ -404,7 +396,7 @@ export default function TripMainScreen() {
 
       {/* Receipt Options Modal - 카메라/갤러리 선택 */}
       <Modal transparent visible={showReceiptOptions} animationType="fade" onRequestClose={() => setShowReceiptOptions(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setShowReceiptOptions(false)}>
+        <Pressable style={[styles.modalOverlay, styles.fabMenuOverlay, { paddingBottom: insets.bottom + 140 }]} onPress={() => setShowReceiptOptions(false)}>
           <View style={[styles.fabMenuBox, { backgroundColor: colors.background, borderRadius: borderRadius.xl, ...shadows.lg }]}>
             <TouchableOpacity style={styles.fabMenuItem} onPress={handleCameraInput}>
               <View style={[styles.fabMenuIcon, { backgroundColor: colors.primaryLight }]}>
@@ -469,17 +461,6 @@ const styles = StyleSheet.create({
   },
   tripHeader: {
     marginBottom: 8,
-  },
-  tripTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  flags: {
-    fontSize: 32,
-    marginRight: 12,
-  },
-  tripTitleInfo: {
-    flex: 1,
   },
   dayBadge: {
     alignSelf: 'flex-start',
@@ -551,9 +532,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
   },
+  fabMenuOverlay: {
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+    paddingRight: 16,
+  },
   fabMenuBox: {
-    width: '100%',
-    maxWidth: 320,
+    width: 280,
     overflow: 'hidden',
   },
   fabMenuItem: {

@@ -1,5 +1,5 @@
-// Travel Helper v1.1 - Trip Detail Screen
-// PRD v1.1: 여행 상세 화면
+// Travel Helper - Trip Settings Screen
+// 여행 설정/상세 화면
 
 import { useEffect, useState } from 'react';
 import {
@@ -10,21 +10,23 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { useLocalSearchParams, router, Stack } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../../lib/theme';
 import { useTripStore } from '../../../lib/stores/tripStore';
 import { useExpenseStore } from '../../../lib/stores/expenseStore';
 import { useSettingsStore } from '../../../lib/stores/settingsStore';
 import { Card, Button, CategoryIcon, CurrencyToggle } from '../../../components/ui';
-import { formatKRW, getCurrencyFlag, formatCurrency } from '../../../lib/utils/currency';
-import { formatFullDate, getDaysBetween, formatDisplayDate } from '../../../lib/utils/date';
-import { CATEGORIES, getCurrencyInfo, getCountryFlag } from '../../../lib/utils/constants';
+import { formatKRW, formatCurrency } from '../../../lib/utils/currency';
+import { getDaysBetween, formatDisplayDate } from '../../../lib/utils/date';
+import { CATEGORIES } from '../../../lib/utils/constants';
 import { Trip, Destination } from '../../../lib/types';
 
-export default function TripDetailScreen() {
+export default function TripSettingsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
   const { colors, spacing, typography, borderRadius } = useTheme();
   const { trips, destinations, deleteTrip, setActiveTrip, loadDestinations } = useTripStore();
   const { expenses, loadExpenses, getStats } = useExpenseStore();
@@ -34,7 +36,6 @@ export default function TripDetailScreen() {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [tripDestinations, setTripDestinations] = useState<Destination[]>([]);
 
-  // 햅틱 피드백 헬퍼
   const triggerHaptic = (style: Haptics.ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle.Light) => {
     if (hapticEnabled) {
       Haptics.impactAsync(style);
@@ -48,7 +49,8 @@ export default function TripDetailScreen() {
       loadExpenses(foundTrip.id);
       loadDestinations(foundTrip.id);
     }
-  }, [id, trips]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, trips.length]);
 
   useEffect(() => {
     if (trip) {
@@ -57,11 +59,6 @@ export default function TripDetailScreen() {
   }, [destinations, trip]);
 
   const stats = trip ? getStats(trip.id) : null;
-
-  // 첫 번째 방문지의 국기 (국가 기반)
-  const primaryFlag = tripDestinations.length > 0
-    ? getCountryFlag(tripDestinations[0].country)
-    : '🌍';
 
   const handleDelete = () => {
     Alert.alert(
@@ -78,7 +75,7 @@ export default function TripDetailScreen() {
               if (hapticEnabled) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
               }
-              router.back();
+              router.replace('/(tabs)');
             }
           },
         },
@@ -90,11 +87,10 @@ export default function TripDetailScreen() {
     if (trip) {
       setActiveTrip(trip);
       triggerHaptic();
-      router.replace('/(tabs)');
+      router.replace(`/trip/${trip.id}/main`);
     }
   };
 
-  // 금액 표시 (통화 토글 반영)
   const formatAmount = (expense: { amount: number; currency: string; amountKRW: number }) => {
     if (showInKRW) {
       return formatKRW(expense.amountKRW);
@@ -104,7 +100,7 @@ export default function TripDetailScreen() {
 
   if (!trip) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
         <Text style={[typography.bodyMedium, { color: colors.textSecondary, textAlign: 'center', marginTop: 40 }]}>
           여행을 찾을 수 없습니다
         </Text>
@@ -113,79 +109,56 @@ export default function TripDetailScreen() {
   }
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          title: '',
-          headerLeft: () => (
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={{
-                width: 40,
-                height: 40,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <MaterialIcons name="chevron-left" size={32} color={colors.text} />
-            </TouchableOpacity>
-          ),
-          headerRight: () => (
-            <TouchableOpacity
-              onPress={handleDelete}
-              style={{
-                width: 40,
-                height: 40,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <MaterialIcons name="delete" size={24} color={colors.error} />
-            </TouchableOpacity>
-          ),
-        }}
-      />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* 커스텀 헤더 */}
+      <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: colors.border }]}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.headerButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <MaterialIcons name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
+        <Text style={[typography.titleMedium, { color: colors.text }]}>여행 설정</Text>
+        <TouchableOpacity
+          onPress={handleDelete}
+          style={styles.headerButton}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <MaterialIcons name="delete" size={24} color={colors.error} />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
-        style={[styles.container, { backgroundColor: colors.background }]}
+        style={styles.scrollView}
         contentContainerStyle={[styles.content, { padding: spacing.base }]}
         showsVerticalScrollIndicator={false}
       >
         {/* 여행 정보 */}
         <Card style={styles.infoCard}>
-          <View style={styles.tripHeader}>
-            {/* <Text style={styles.flag}>{primaryFlag}</Text> */}
-            <View style={styles.tripInfo}>
-              <Text style={[typography.headlineSmall, { color: colors.text }]}>{trip.name}</Text>
-              <Text style={[typography.bodySmall, { color: colors.textSecondary, marginTop: 4 }]}>
-                {formatDisplayDate(trip.startDate)} - {formatDisplayDate(trip.endDate)}
-              </Text>
-              <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
-                {getDaysBetween(trip.startDate, trip.endDate)}일간의 여행
-              </Text>
-            </View>
+          <View style={styles.tripInfo}>
+            <Text style={[typography.headlineSmall, { color: colors.text }]}>{trip.name}</Text>
+            <Text style={[typography.bodySmall, { color: colors.textSecondary, marginTop: 4 }]}>
+              {formatDisplayDate(trip.startDate)} - {formatDisplayDate(trip.endDate)}
+            </Text>
+            <Text style={[typography.caption, { color: colors.textSecondary, marginTop: 2 }]}>
+              {getDaysBetween(trip.startDate, trip.endDate)}일간의 여행
+            </Text>
           </View>
 
           {/* 방문지 목록 */}
           {tripDestinations.length > 0 && (
             <View style={[styles.destinationsRow, { marginTop: spacing.md }]}>
-              {tripDestinations.map((dest, index) => {
-                return (
-                  <View
-                    key={dest.id}
-                    style={[
-                      styles.destinationChip,
-                      { backgroundColor: colors.surface, borderRadius: borderRadius.sm },
-                    ]}
-                  >
-                    <Text style={{ fontSize: 14 }}>{getCountryFlag(dest.country)}</Text>
-                    <Text style={[typography.caption, { color: colors.text, marginLeft: 4 }]}>
-                      {dest.city || dest.country}
-                    </Text>
-                  </View>
-                );
-              })}
+              {tripDestinations.map((dest) => (
+                <View
+                  key={dest.id}
+                  style={[styles.destinationChip, { backgroundColor: colors.surface, borderRadius: borderRadius.sm }]}
+                >
+                  <Text style={[typography.caption, { color: colors.text }]}>
+                    {dest.city || dest.country}
+                  </Text>
+                </View>
+              ))}
             </View>
           )}
 
@@ -193,30 +166,22 @@ export default function TripDetailScreen() {
 
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                총 지출
-              </Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>총 지출</Text>
               <Text style={[typography.titleMedium, { color: colors.text }]}>
                 {formatKRW(stats?.totalKRW || 0)}
               </Text>
             </View>
             {trip.budget && (
               <View style={styles.statItem}>
-                <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                  예산
-                </Text>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>예산</Text>
                 <Text style={[typography.titleMedium, { color: colors.success }]}>
                   {formatKRW(trip.budget)}
                 </Text>
               </View>
             )}
             <View style={styles.statItem}>
-              <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                지출 건수
-              </Text>
-              <Text style={[typography.titleMedium, { color: colors.text }]}>
-                {expenses.length}건
-              </Text>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>지출 건수</Text>
+              <Text style={[typography.titleMedium, { color: colors.text }]}>{expenses.length}건</Text>
             </View>
           </View>
         </Card>
@@ -247,12 +212,8 @@ export default function TripDetailScreen() {
                       </Text>
                     </View>
                     <View style={styles.categoryAmount}>
-                      <Text style={[typography.titleSmall, { color: colors.text }]}>
-                        {formatKRW(amount)}
-                      </Text>
-                      <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                        {percentage}%
-                      </Text>
+                      <Text style={[typography.titleSmall, { color: colors.text }]}>{formatKRW(amount)}</Text>
+                      <Text style={[typography.caption, { color: colors.textSecondary }]}>{percentage}%</Text>
                     </View>
                   </View>
                 </Card>
@@ -267,54 +228,36 @@ export default function TripDetailScreen() {
             지출 내역
           </Text>
           {expenses.length > 0 ? (
-            expenses.map((expense) => {
-              const dest = tripDestinations.find(d => d.id === expense.destinationId);
-              return (
-                <TouchableOpacity
-                  key={expense.id}
-                  onPress={() => router.push(`/expense/${expense.id}`)}
-                >
-                  <Card style={{ marginBottom: spacing.xs, padding: spacing.sm }}>
-                    <View style={styles.expenseRow}>
-                      <CategoryIcon category={expense.category} size="small" />
-                      <View style={[styles.expenseInfo, { marginLeft: spacing.sm }]}>
-                        <View style={styles.expenseTopRow}>
-                          <Text style={[typography.bodyMedium, { color: colors.text }]}>
-                            {CATEGORIES.find((c) => c.id === expense.category)?.label}
-                          </Text>
-                          {dest && (
-                            <Text style={[typography.caption, { color: colors.textSecondary, marginLeft: spacing.xs }]}>
-                              {getCountryFlag(dest.country)}
-                            </Text>
-                          )}
-                        </View>
-                        {expense.memo && (
-                          <Text
-                            style={[typography.caption, { color: colors.textSecondary }]}
-                            numberOfLines={1}
-                          >
-                            {expense.memo}
-                          </Text>
-                        )}
-                        <Text style={[typography.caption, { color: colors.textTertiary }]}>
-                          {formatDisplayDate(expense.date)}
+            expenses.map((expense) => (
+              <TouchableOpacity key={expense.id} onPress={() => router.push(`/expense/${expense.id}`)}>
+                <Card style={{ marginBottom: spacing.xs, padding: spacing.sm }}>
+                  <View style={styles.expenseRow}>
+                    <CategoryIcon category={expense.category} size="small" />
+                    <View style={[styles.expenseInfo, { marginLeft: spacing.sm }]}>
+                      <Text style={[typography.bodyMedium, { color: colors.text }]}>
+                        {CATEGORIES.find((c) => c.id === expense.category)?.label}
+                      </Text>
+                      {expense.memo && (
+                        <Text style={[typography.caption, { color: colors.textSecondary }]} numberOfLines={1}>
+                          {expense.memo}
                         </Text>
-                      </View>
-                      <View style={styles.expenseAmount}>
-                        <Text style={[typography.titleSmall, { color: colors.text }]}>
-                          {formatAmount(expense)}
-                        </Text>
-                        {!showInKRW && (
-                          <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                            {formatKRW(expense.amountKRW)}
-                          </Text>
-                        )}
-                      </View>
+                      )}
+                      <Text style={[typography.caption, { color: colors.textTertiary }]}>
+                        {formatDisplayDate(expense.date)}
+                      </Text>
                     </View>
-                  </Card>
-                </TouchableOpacity>
-              );
-            })
+                    <View style={styles.expenseAmount}>
+                      <Text style={[typography.titleSmall, { color: colors.text }]}>{formatAmount(expense)}</Text>
+                      {!showInKRW && (
+                        <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                          {formatKRW(expense.amountKRW)}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                </Card>
+              </TouchableOpacity>
+            ))
           ) : (
             <Card style={{ alignItems: 'center', padding: spacing.xl }}>
               <MaterialIcons name="receipt-long" size={48} color={colors.textTertiary} />
@@ -332,7 +275,7 @@ export default function TripDetailScreen() {
           style={{ marginBottom: spacing.xl }}
         />
       </ScrollView>
-    </>
+    </View>
   );
 }
 
@@ -340,19 +283,28 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+  },
+  headerButton: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scrollView: {
+    flex: 1,
+  },
   content: {
     paddingBottom: 40,
   },
   infoCard: {
     marginBottom: 16,
-  },
-  tripHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  flag: {
-    fontSize: 48,
-    marginRight: 16,
   },
   tripInfo: {
     flex: 1,
@@ -365,8 +317,8 @@ const styles = StyleSheet.create({
   destinationChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   divider: {
     height: 1,
@@ -401,10 +353,6 @@ const styles = StyleSheet.create({
   },
   expenseInfo: {
     flex: 1,
-  },
-  expenseTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   expenseAmount: {
     alignItems: 'flex-end',

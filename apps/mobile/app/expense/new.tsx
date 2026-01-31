@@ -116,41 +116,50 @@ export default function NewExpenseScreen() {
 
   // 초기화 - activeTrip이 이미 설정되어 있으면 바로 사용
   useEffect(() => {
-    if (activeTrip && !selectedTrip) {
-      handleTripSelect(activeTrip);
-    } else if (activeTrips.length === 1 && !selectedTrip) {
-      handleTripSelect(activeTrips[0]);
-    }
-    // 여행 선택 모달은 더 이상 표시하지 않음 (설정에서 이미 선택됨)
-  }, [activeTrips, activeTrip]);
+    const initTrip = async () => {
+      if (activeTrip && !selectedTrip) {
+        setSelectedTrip(activeTrip);
+        setActiveTrip(activeTrip);
+        await loadDestinations(activeTrip.id);
+      } else if (activeTrips.length === 1 && !selectedTrip) {
+        const trip = activeTrips[0];
+        setSelectedTrip(trip);
+        setActiveTrip(trip);
+        await loadDestinations(trip.id);
+      }
+    };
+    initTrip();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTrips.length, activeTrip?.id]);
 
   // 갤러리 자동 선택 (query param으로 진입 시) - 한 번만 실행
   const galleryLoadedRef = useRef(false);
   useEffect(() => {
+    if (step !== 'gallery-loading' || galleryLoadedRef.current) return;
+
     const loadFromGallery = async () => {
-      if (step === 'gallery-loading' && !galleryLoadedRef.current) {
-        galleryLoadedRef.current = true;
+      galleryLoadedRef.current = true;
 
-        const permission = await requestGalleryPermission();
-        if (permission === 'never_ask_again') {
-          setStep('gallery-permission-denied');
-          return;
-        }
+      const permission = await requestGalleryPermission();
+      if (permission === 'never_ask_again') {
+        setStep('gallery-permission-denied');
+        return;
+      }
 
-        const result = await pickImageFromGallery();
-        if (result.success && result.image) {
-          setReceiptImage(result.image);
-          setStep('receipt-form');
-        } else if (result.error && result.error !== 'CANCELLED') {
-          Alert.alert('오류', getImageErrorMessage(result.error));
-          router.back();
-        } else {
-          // 취소한 경우
-          router.back();
-        }
+      const result = await pickImageFromGallery();
+      if (result.success && result.image) {
+        setReceiptImage(result.image);
+        setStep('receipt-form');
+      } else if (result.error && result.error !== 'CANCELLED') {
+        Alert.alert('오류', getImageErrorMessage(result.error));
+        router.back();
+      } else {
+        // 취소한 경우
+        router.back();
       }
     };
     loadFromGallery();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
   // 여행 선택 시 방문지 로드

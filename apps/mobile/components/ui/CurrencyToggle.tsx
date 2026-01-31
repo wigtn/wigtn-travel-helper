@@ -2,11 +2,10 @@
 // PRD FR-007: 원화/현지통화 토글 버튼
 
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../lib/theme';
 import { useSettingsStore } from '../../lib/stores/settingsStore';
-import { CurrencyDisplayMode } from '../../lib/types';
 
 interface CurrencyToggleProps {
   compact?: boolean;
@@ -15,7 +14,9 @@ interface CurrencyToggleProps {
 
 export function CurrencyToggle({ compact = false, variant }: CurrencyToggleProps) {
   const { colors, typography, spacing, borderRadius } = useTheme();
-  const { currencyDisplayMode, toggleCurrencyDisplayMode, hapticEnabled } = useSettingsStore();
+  const currencyDisplayMode = useSettingsStore((s) => s.currencyDisplayMode);
+  const toggleCurrencyDisplayMode = useSettingsStore((s) => s.toggleCurrencyDisplayMode);
+  const hapticEnabled = useSettingsStore((s) => s.hapticEnabled);
 
   const handleToggle = () => {
     if (hapticEnabled) {
@@ -29,21 +30,25 @@ export function CurrencyToggle({ compact = false, variant }: CurrencyToggleProps
 
   if (isCompact) {
     return (
-      <Pressable
+      <TouchableOpacity
         style={[
           styles.compactContainer,
           {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
-            borderRadius: borderRadius.full,
+            backgroundColor: isKRW ? colors.primaryLight : colors.surface,
+            borderColor: isKRW ? colors.primary : colors.border,
+            borderRadius: borderRadius.md,
           },
         ]}
         onPress={handleToggle}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        activeOpacity={0.7}
+        accessibilityLabel={isKRW ? '원화로 표시 중, 탭하여 현지통화로 전환' : '현지통화로 표시 중, 탭하여 원화로 전환'}
+        accessibilityRole="button"
       >
-        <Text style={[typography.labelMedium, { color: colors.text }]}>
-          {isKRW ? '₩' : '¤'}
+        <Text style={[typography.labelSmall, { color: isKRW ? colors.primary : colors.textSecondary, fontWeight: '600' }]}>
+          {isKRW ? '₩' : '현지'}
         </Text>
-      </Pressable>
+      </TouchableOpacity>
     );
   }
 
@@ -118,9 +123,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   compactContainer: {
-    width: 36,
-    height: 36,
-    borderWidth: 1,
+    minWidth: 44,
+    height: 32,
+    paddingHorizontal: 10,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },

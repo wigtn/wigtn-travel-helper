@@ -7,20 +7,38 @@ import { persist, createJSONStorage, StateStorage } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
 import { CurrencyDisplayMode, ThemeMode, AppSettings } from '../types';
 
-// SecureStore를 사용한 커스텀 스토리지 (설정 값 저장용)
+// SecureStore를 사용한 커스텀 스토리지
 const secureStorage: StateStorage = {
   getItem: async (name: string): Promise<string | null> => {
-    return await SecureStore.getItemAsync(name);
+    try {
+      const value = await SecureStore.getItemAsync(name);
+      return value;
+    } catch (error) {
+      console.warn('SecureStore getItem error:', error);
+      return null;
+    }
   },
   setItem: async (name: string, value: string): Promise<void> => {
-    await SecureStore.setItemAsync(name, value);
+    try {
+      await SecureStore.setItemAsync(name, value);
+    } catch (error) {
+      console.warn('SecureStore setItem error:', error);
+    }
   },
   removeItem: async (name: string): Promise<void> => {
-    await SecureStore.deleteItemAsync(name);
+    try {
+      await SecureStore.deleteItemAsync(name);
+    } catch (error) {
+      console.warn('SecureStore removeItem error:', error);
+    }
   },
 };
 
 interface SettingsState extends AppSettings {
+  // Hydration 상태
+  _hasHydrated: boolean;
+  setHasHydrated: (state: boolean) => void;
+
   // 통화 표시 모드 토글 (FR-007)
   toggleCurrencyDisplayMode: () => void;
   setCurrencyDisplayMode: (mode: CurrencyDisplayMode) => void;
@@ -34,15 +52,20 @@ interface SettingsState extends AppSettings {
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       currencyDisplayMode: 'local',
       hapticEnabled: true,
       themeMode: 'system',
+      _hasHydrated: false,
+
+      setHasHydrated: (state) => {
+        set({ _hasHydrated: state });
+      },
 
       toggleCurrencyDisplayMode: () => {
-        set((state) => ({
-          currencyDisplayMode: state.currencyDisplayMode === 'local' ? 'krw' : 'local',
-        }));
+        const currentMode = get().currencyDisplayMode;
+        const newMode = currentMode === 'local' ? 'krw' : 'local';
+        set({ currencyDisplayMode: newMode });
       },
 
       setCurrencyDisplayMode: (mode) => {
@@ -60,6 +83,12 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: 'app-settings',
       storage: createJSONStorage(() => secureStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );
+
+// Hydration 완료 여부 확인용 selector
+export const useSettingsHydrated = () => useSettingsStore((state) => state._hasHydrated);

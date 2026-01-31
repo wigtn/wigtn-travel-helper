@@ -1,7 +1,7 @@
 // Main Screen Revamp - Calculator Modal
 // PRD FR-401~FR-410: 내장 계산기 + 통화 선택
 
-import { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  ViewStyle,
 } from 'react-native';
 import { router } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -26,6 +27,75 @@ const BUTTON_GAP = 8;
 const BUTTON_SIZE = (SCREEN_WIDTH - 32 - BUTTON_GAP * 3) / 4;
 
 type Operator = '+' | '-' | '×' | '÷' | null;
+
+// Memoized CalcButton component
+interface CalcButtonProps {
+  label: string;
+  onPress: () => void;
+  variant?: 'number' | 'operator' | 'function' | 'equals';
+  wide?: boolean;
+  colors: {
+    secondary: string;
+    surface: string;
+    primary: string;
+    surfaceElevated: string;
+    text: string;
+  };
+  borderRadiusMd: number;
+}
+
+const CalcButton = React.memo(({
+  label,
+  onPress,
+  variant = 'number',
+  wide = false,
+  colors,
+  borderRadiusMd,
+}: CalcButtonProps) => {
+  const getButtonStyle = (): ViewStyle => {
+    switch (variant) {
+      case 'operator':
+        return { backgroundColor: colors.secondary };
+      case 'function':
+        return { backgroundColor: colors.surface };
+      case 'equals':
+        return { backgroundColor: colors.primary };
+      default:
+        return { backgroundColor: colors.surfaceElevated };
+    }
+  };
+
+  const getTextColor = () => {
+    switch (variant) {
+      case 'operator':
+      case 'equals':
+        return 'white';
+      default:
+        return colors.text;
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.button,
+        getButtonStyle(),
+        {
+          borderRadius: borderRadiusMd,
+          width: wide ? BUTTON_SIZE * 2 + BUTTON_GAP : BUTTON_SIZE,
+          height: BUTTON_SIZE * 0.7,
+        },
+      ]}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityLabel={label}
+    >
+      <Text style={[styles.buttonText, { color: getTextColor() }]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+});
 
 export default function CalculatorScreen() {
   const insets = useSafeAreaInsets();
@@ -59,6 +129,11 @@ export default function CalculatorScreen() {
   const [waitingForOperand, setWaitingForOperand] = useState(false);
   const [selectedCurrency, setSelectedCurrency] = useState(defaultCurrency);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
+
+  // Update selected currency when activeTrip changes
+  useEffect(() => {
+    setSelectedCurrency(defaultCurrency);
+  }, [defaultCurrency]);
 
   const triggerHaptic = useCallback(() => {
     if (hapticEnabled) {
@@ -192,62 +267,14 @@ export default function CalculatorScreen() {
     setShowCurrencyPicker(false);
   };
 
-  // Button component
-  const CalcButton = ({
-    label,
-    onPress,
-    variant = 'number',
-    wide = false,
-  }: {
-    label: string;
-    onPress: () => void;
-    variant?: 'number' | 'operator' | 'function' | 'equals';
-    wide?: boolean;
-  }) => {
-    const getButtonStyle = () => {
-      switch (variant) {
-        case 'operator':
-          return { backgroundColor: colors.secondary };
-        case 'function':
-          return { backgroundColor: colors.surface };
-        case 'equals':
-          return { backgroundColor: colors.primary };
-        default:
-          return { backgroundColor: colors.surfaceElevated };
-      }
-    };
-
-    const getTextColor = () => {
-      switch (variant) {
-        case 'operator':
-        case 'equals':
-          return 'white';
-        default:
-          return colors.text;
-      }
-    };
-
-    return (
-      <TouchableOpacity
-        style={[
-          styles.button,
-          getButtonStyle(),
-          {
-            borderRadius: borderRadius.md,
-            width: wide ? BUTTON_SIZE * 2 + BUTTON_GAP : BUTTON_SIZE,
-            height: BUTTON_SIZE * 0.7,
-          },
-        ]}
-        onPress={onPress}
-        activeOpacity={0.7}
-        accessibilityLabel={label}
-      >
-        <Text style={[styles.buttonText, { color: getTextColor() }]}>
-          {label}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+  // Button colors for CalcButton component
+  const buttonColors = useMemo(() => ({
+    secondary: colors.secondary,
+    surface: colors.surface,
+    primary: colors.primary,
+    surfaceElevated: colors.surfaceElevated,
+    text: colors.text,
+  }), [colors]);
 
   const currencyInfo = getCurrencyInfo(selectedCurrency);
   const currencySymbol = getCurrencySymbol(selectedCurrency);
@@ -351,41 +378,41 @@ export default function CalculatorScreen() {
         <View style={styles.keypad}>
           {/* Row 1 */}
           <View style={styles.row}>
-            <CalcButton label="AC" onPress={handleClear} variant="function" />
-            <CalcButton label="⌫" onPress={handleDelete} variant="function" />
-            <CalcButton label="%" onPress={handlePercent} variant="function" />
-            <CalcButton label="÷" onPress={() => performOperation('÷')} variant="operator" />
+            <CalcButton label="AC" onPress={handleClear} variant="function" colors={buttonColors} borderRadiusMd={borderRadius.md} />
+            <CalcButton label="⌫" onPress={handleDelete} variant="function" colors={buttonColors} borderRadiusMd={borderRadius.md} />
+            <CalcButton label="%" onPress={handlePercent} variant="function" colors={buttonColors} borderRadiusMd={borderRadius.md} />
+            <CalcButton label="÷" onPress={() => performOperation('÷')} variant="operator" colors={buttonColors} borderRadiusMd={borderRadius.md} />
           </View>
 
           {/* Row 2 */}
           <View style={styles.row}>
-            <CalcButton label="7" onPress={() => inputDigit('7')} />
-            <CalcButton label="8" onPress={() => inputDigit('8')} />
-            <CalcButton label="9" onPress={() => inputDigit('9')} />
-            <CalcButton label="×" onPress={() => performOperation('×')} variant="operator" />
+            <CalcButton label="7" onPress={() => inputDigit('7')} colors={buttonColors} borderRadiusMd={borderRadius.md} />
+            <CalcButton label="8" onPress={() => inputDigit('8')} colors={buttonColors} borderRadiusMd={borderRadius.md} />
+            <CalcButton label="9" onPress={() => inputDigit('9')} colors={buttonColors} borderRadiusMd={borderRadius.md} />
+            <CalcButton label="×" onPress={() => performOperation('×')} variant="operator" colors={buttonColors} borderRadiusMd={borderRadius.md} />
           </View>
 
           {/* Row 3 */}
           <View style={styles.row}>
-            <CalcButton label="4" onPress={() => inputDigit('4')} />
-            <CalcButton label="5" onPress={() => inputDigit('5')} />
-            <CalcButton label="6" onPress={() => inputDigit('6')} />
-            <CalcButton label="-" onPress={() => performOperation('-')} variant="operator" />
+            <CalcButton label="4" onPress={() => inputDigit('4')} colors={buttonColors} borderRadiusMd={borderRadius.md} />
+            <CalcButton label="5" onPress={() => inputDigit('5')} colors={buttonColors} borderRadiusMd={borderRadius.md} />
+            <CalcButton label="6" onPress={() => inputDigit('6')} colors={buttonColors} borderRadiusMd={borderRadius.md} />
+            <CalcButton label="-" onPress={() => performOperation('-')} variant="operator" colors={buttonColors} borderRadiusMd={borderRadius.md} />
           </View>
 
           {/* Row 4 */}
           <View style={styles.row}>
-            <CalcButton label="1" onPress={() => inputDigit('1')} />
-            <CalcButton label="2" onPress={() => inputDigit('2')} />
-            <CalcButton label="3" onPress={() => inputDigit('3')} />
-            <CalcButton label="+" onPress={() => performOperation('+')} variant="operator" />
+            <CalcButton label="1" onPress={() => inputDigit('1')} colors={buttonColors} borderRadiusMd={borderRadius.md} />
+            <CalcButton label="2" onPress={() => inputDigit('2')} colors={buttonColors} borderRadiusMd={borderRadius.md} />
+            <CalcButton label="3" onPress={() => inputDigit('3')} colors={buttonColors} borderRadiusMd={borderRadius.md} />
+            <CalcButton label="+" onPress={() => performOperation('+')} variant="operator" colors={buttonColors} borderRadiusMd={borderRadius.md} />
           </View>
 
           {/* Row 5 */}
           <View style={styles.row}>
-            <CalcButton label="0" onPress={() => inputDigit('0')} wide />
-            <CalcButton label="." onPress={inputDecimal} />
-            <CalcButton label="=" onPress={handleEquals} variant="equals" />
+            <CalcButton label="0" onPress={() => inputDigit('0')} wide colors={buttonColors} borderRadiusMd={borderRadius.md} />
+            <CalcButton label="." onPress={inputDecimal} colors={buttonColors} borderRadiusMd={borderRadius.md} />
+            <CalcButton label="=" onPress={handleEquals} variant="equals" colors={buttonColors} borderRadiusMd={borderRadius.md} />
           </View>
         </View>
       </View>
