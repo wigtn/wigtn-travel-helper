@@ -1,7 +1,7 @@
 // Travel Helper v1.1 - New Trip Screen
 // PRD v1.1: 여행 생성 화면
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,17 +9,32 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { Calendar, DateData, LocaleConfig } from 'react-native-calendars';
 import { useTheme } from '../../lib/theme';
 import { useTripStore } from '../../lib/stores/tripStore';
 import { Button, Input, Card, BottomSheet } from '../../components/ui';
 import { CURRENCIES, POPULAR_COUNTRIES, getCurrencyInfo, getCountryFlag } from '../../lib/utils/constants';
 import { formatDate, formatFullDate } from '../../lib/utils/date';
 import { Destination } from '../../lib/types';
+
+// 한국어 로케일 설정
+LocaleConfig.locales['ko'] = {
+  monthNames: [
+    '1월', '2월', '3월', '4월', '5월', '6월',
+    '7월', '8월', '9월', '10월', '11월', '12월',
+  ],
+  monthNamesShort: [
+    '1월', '2월', '3월', '4월', '5월', '6월',
+    '7월', '8월', '9월', '10월', '11월', '12월',
+  ],
+  dayNames: ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'],
+  dayNamesShort: ['일', '월', '화', '수', '목', '금', '토'],
+  today: '오늘',
+};
+LocaleConfig.defaultLocale = 'ko';
 
 interface DestinationInput {
   country: string;
@@ -28,6 +43,8 @@ interface DestinationInput {
   startDate?: Date;
   endDate?: Date;
 }
+
+type SelectionPhase = 'idle' | 'selectingEnd';
 
 export default function NewTripScreen() {
   const { colors, spacing, typography, borderRadius } = useTheme();
@@ -39,8 +56,11 @@ export default function NewTripScreen() {
   const [budget, setBudget] = useState('');
   const [destinations, setDestinations] = useState<DestinationInput[]>([]);
 
-  const [showStartPicker, setShowStartPicker] = useState(false);
-  const [showEndPicker, setShowEndPicker] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [selectionPhase, setSelectionPhase] = useState<SelectionPhase>('idle');
+  const [tempStartDate, setTempStartDate] = useState<Date | null>(null);
+  const [tempEndDate, setTempEndDate] = useState<Date | null>(null);
+
   const [showDestinationModal, setShowDestinationModal] = useState(false);
   const [editingDestIndex, setEditingDestIndex] = useState<number | null>(null);
 
@@ -50,6 +70,15 @@ export default function NewTripScreen() {
   const [tempCurrency, setTempCurrency] = useState('');
 
   const [loading, setLoading] = useState(false);
+
+  // 캘린더 열릴 때 임시 날짜 초기화
+  useEffect(() => {
+    if (showCalendar) {
+      setTempStartDate(startDate);
+      setTempEndDate(endDate);
+      setSelectionPhase('idle');
+    }
+  }, [showCalendar]);
 
   const handleAddDestination = () => {
     setTempCountry('');
@@ -114,6 +143,80 @@ export default function NewTripScreen() {
     setTempCurrency(item.currency);
   };
 
+  // 캘린더 날짜 선택 핸들러
+  const handleDayPress = (day: DateData) => {
+    const selectedDate = new Date(day.dateString);
+
+    if (selectionPhase === 'idle') {
+      // 첫 번째 클릭: 시작일 선택
+      setTempStartDate(selectedDate);
+      setTempEndDate(selectedDate); // 일단 같은 날로 설정
+      setSelectionPhase('selectingEnd');
+    } else {
+      // 두 번째 클릭: 종료일 선택
+      if (selectedDate < tempStartDate!) {
+        // 선택한 날짜가 시작일보다 이전이면 다시 시작일로 설정
+        setTempStartDate(selectedDate);
+        setTempEndDate(selectedDate);
+        // selectionPhase는 'selectingEnd' 유지
+      } else {
+        setTempEndDate(selectedDate);
+        setSelectionPhase('idle');
+      }
+    }
+  };
+
+  // 날짜 선택 확인
+  const handleConfirmDates = () => {
+    if (tempStartDate && tempEndDate) {
+      setStartDate(tempStartDate);
+      setEndDate(tempEndDate);
+    }
+    setShowCalendar(false);
+  };
+
+  // 캘린더에 표시할 마킹 데이터
+  const markedDates = useMemo(() => {
+    const marks: Record<string, any> = {};
+
+    if (!tempStartDate || !tempEndDate) return marks;
+
+    const start = formatDate(tempStartDate);
+    const end = formatDate(tempEndDate);
+
+    // 시작일과 종료일이 같은 경우
+    if (start === end) {
+      marks[start] = {
+        startingDay: true,
+        endingDay: true,
+        color: colors.primary,
+        textColor: colors.textInverse,
+      };
+      return marks;
+    }
+
+    // 시작일부터 종료일까지 마킹
+    const current = new Date(tempStartDate);
+    const endTime = new Date(tempEndDate);
+
+    while (current <= endTime) {
+      const dateStr = formatDate(current);
+      const isStart = dateStr === start;
+      const isEnd = dateStr === end;
+
+      marks[dateStr] = {
+        startingDay: isStart,
+        endingDay: isEnd,
+        color: isStart || isEnd ? colors.primary : colors.primaryLight,
+        textColor: isStart || isEnd ? colors.textInverse : colors.primary,
+      };
+
+      current.setDate(current.getDate() + 1);
+    }
+
+    return marks;
+  }, [tempStartDate, tempEndDate, colors]);
+
   const handleSubmit = async () => {
     if (!name.trim()) {
       Alert.alert('알림', '여행 이름을 입력해주세요');
@@ -155,6 +258,13 @@ export default function NewTripScreen() {
     }
   };
 
+  // 선택된 날짜 일수 계산
+  const selectedDays = useMemo(() => {
+    if (!tempStartDate || !tempEndDate) return 0;
+    const diffTime = Math.abs(tempEndDate.getTime() - tempStartDate.getTime());
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  }, [tempStartDate, tempEndDate]);
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -174,59 +284,32 @@ export default function NewTripScreen() {
         여행 기간
       </Text>
       <View style={styles.dateRow}>
-        <View style={styles.dateItem}>
-          <TouchableOpacity
-            style={[
-              styles.dateButton,
-              { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: borderRadius.md },
-            ]}
-            onPress={() => setShowStartPicker(true)}
-          >
-            <MaterialIcons name="calendar-today" size={18} color={colors.textSecondary} />
-            <Text style={[typography.bodyMedium, { color: colors.text, marginLeft: spacing.sm }]}>
-              {formatFullDate(startDate)}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[
+            styles.dateButton,
+            { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: borderRadius.md, flex: 1 },
+          ]}
+          onPress={() => setShowCalendar(true)}
+        >
+          <MaterialIcons name="calendar-today" size={18} color={colors.textSecondary} />
+          <Text style={[typography.bodyMedium, { color: colors.text, marginLeft: spacing.sm }]}>
+            {formatFullDate(startDate)}
+          </Text>
+        </TouchableOpacity>
         <MaterialIcons name="arrow-forward" size={20} color={colors.textTertiary} />
-        <View style={styles.dateItem}>
-          <TouchableOpacity
-            style={[
-              styles.dateButton,
-              { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: borderRadius.md },
-            ]}
-            onPress={() => setShowEndPicker(true)}
-          >
-            <MaterialIcons name="calendar-today" size={18} color={colors.textSecondary} />
-            <Text style={[typography.bodyMedium, { color: colors.text, marginLeft: spacing.sm }]}>
-              {formatFullDate(endDate)}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={[
+            styles.dateButton,
+            { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: borderRadius.md, flex: 1 },
+          ]}
+          onPress={() => setShowCalendar(true)}
+        >
+          <MaterialIcons name="calendar-today" size={18} color={colors.textSecondary} />
+          <Text style={[typography.bodyMedium, { color: colors.text, marginLeft: spacing.sm }]}>
+            {formatFullDate(endDate)}
+          </Text>
+        </TouchableOpacity>
       </View>
-
-      {(showStartPicker || showEndPicker) && (
-        <DateTimePicker
-          value={showStartPicker ? startDate : endDate}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={(event, date) => {
-            if (Platform.OS === 'android') {
-              setShowStartPicker(false);
-              setShowEndPicker(false);
-            }
-            if (date) {
-              if (showStartPicker) {
-                setStartDate(date);
-                setShowStartPicker(false);
-              } else {
-                setEndDate(date);
-                setShowEndPicker(false);
-              }
-            }
-          }}
-        />
-      )}
 
       {/* 예산 */}
       <Input
@@ -394,6 +477,75 @@ export default function NewTripScreen() {
           fullWidth
         />
       </BottomSheet>
+
+      {/* 캘린더 모달 */}
+      <BottomSheet
+        visible={showCalendar}
+        onClose={() => setShowCalendar(false)}
+        title="여행 기간 선택"
+      >
+        <View>
+          {/* 안내 텍스트 */}
+          <Text style={[typography.bodySmall, { color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.sm }]}>
+            {selectionPhase === 'idle'
+              ? '시작일을 선택하세요'
+              : '종료일을 선택하세요'}
+          </Text>
+
+          {/* 캘린더 */}
+          <Calendar
+            markingType="period"
+            markedDates={markedDates}
+            onDayPress={handleDayPress}
+            minDate={new Date().toISOString().split('T')[0]}
+            theme={{
+              backgroundColor: colors.background,
+              calendarBackground: colors.background,
+              textSectionTitleColor: colors.textSecondary,
+              selectedDayBackgroundColor: colors.primary,
+              selectedDayTextColor: colors.textInverse,
+              todayTextColor: colors.primary,
+              dayTextColor: colors.text,
+              textDisabledColor: colors.textTertiary,
+              arrowColor: colors.primary,
+              monthTextColor: colors.text,
+              textDayFontWeight: '400',
+              textMonthFontWeight: '600',
+              textDayHeaderFontWeight: '500',
+            }}
+          />
+
+          {/* 선택된 기간 표시 */}
+          <View style={[styles.dateInfoRow, { marginTop: spacing.md }]}>
+            <View style={styles.dateInfoItem}>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>시작일</Text>
+              <Text style={[typography.titleSmall, { color: colors.text }]}>
+                {tempStartDate ? formatFullDate(tempStartDate) : '-'}
+              </Text>
+            </View>
+            <View style={[styles.dateDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.dateInfoItem}>
+              <Text style={[typography.caption, { color: colors.textSecondary }]}>종료일</Text>
+              <Text style={[typography.titleSmall, { color: colors.text }]}>
+                {tempEndDate ? formatFullDate(tempEndDate) : '-'}
+              </Text>
+            </View>
+            <View style={[styles.daysBadge, { backgroundColor: colors.primaryLight }]}>
+              <Text style={[typography.labelMedium, { color: colors.primary }]}>
+                {selectedDays}일
+              </Text>
+            </View>
+          </View>
+
+          {/* 확인 버튼 */}
+          <Button
+            title="확인"
+            onPress={handleConfirmDates}
+            fullWidth
+            style={{ marginTop: spacing.md }}
+          />
+        </View>
+      </BottomSheet>
     </ScrollView>
   );
 }
@@ -410,9 +562,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 16,
-  },
-  dateItem: {
-    flex: 1,
   },
   dateButton: {
     flexDirection: 'row',
@@ -467,5 +616,23 @@ const styles = StyleSheet.create({
   },
   currencyFlag: {
     fontSize: 16,
+  },
+  dateInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  dateInfoItem: {
+    alignItems: 'center',
+  },
+  dateDivider: {
+    width: 24,
+    height: 1,
+  },
+  daysBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
 });
